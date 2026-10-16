@@ -2,11 +2,15 @@
 
 Sistema simples (um único `index.html`, sem instalação) para acompanhar comissões de vendas de planos de saúde.
 
-- **Regra padrão:** 20% sobre as 3 primeiras mensalidades (configurável).
-- **Painel:** mesmos indicadores da planilha (total de vendas, quantidade, comissão média, comissão acumulada, falta para a meta, quanto ainda vender e por dia útil), já somando 2ª e 3ª parcelas de vendas anteriores.
-- **Vendas:** cadastro com cliente, operadora, vigência, mensalidade e vidas; status por parcela (prevista → recebida → cancelada).
-- **Mês a mês:** previsto × recebido × meta.
-- **Importar:** colar linhas do Google Sheets (Data, Cliente, Valor) em Configurações.
-- **Backup:** exportar/importar JSON e exportar CSV (abre no Excel/Google Sheets).
+## Regras (configuráveis)
+- **20%** sobre as **3 primeiras** mensalidades.
+- Depois disso, **vitalício de 2%** ao mês enquanto o contrato estiver ativo.
+- A comissão cai **1 mês após** o pagamento da parcela (paga em junho → recebe em julho).
 
-Os dados ficam no navegador (localStorage). Para usar: abra `index.html` ou publique via GitHub Pages.
+## Telas
+- **Painel:** mês de recebimento, meta, comissão prevista (1ª parcela / demais / vitalício), recebido, quanto falta, vendas do mês que alimentam a meta e quanto vender por dia útil.
+- **Vendas:** cadastro (cliente, operadora, data do 1º pagamento, mensalidade); status por parcela (prevista → recebida → cancelada); cancelar contrato encerra o vitalício.
+- **Mês a mês:** histórico e projeção de 12 meses.
+- **Configurações:** regras, importar linhas coladas do Google Sheets, backup JSON e exportação CSV.
+
+Os dados ficam no navegador (localStorage).

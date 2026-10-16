@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lorena Comissões</title>
 <style>
-:root{--bg:#f5f6fa;--card:#fff;--tx:#1d2330;--mut:#6b7385;--pri:#0b7a5c;--pri2:#e3f4ee;--warn:#c27a00;--bad:#c0392b;--bd:#e3e6ee}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b1f29;--tx:#e8ebf2;--mut:#99a1b3;--pri:#3cc596;--pri2:#163a2f;--bd:#2a3040}}
+:root{--bg:#f5f6fa;--card:#fff;--tx:#1d2330;--mut:#6b7385;--pri:#0b7a5c;--pri2:#e3f4ee;--warn:#c27a00;--bad:#c0392b;--bd:#e3e6ee;--vit:#5b4bc4;--vit2:#ecebfb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b1f29;--tx:#e8ebf2;--mut:#99a1b3;--pri:#3cc596;--pri2:#163a2f;--bd:#2a3040;--vit:#a99cff;--vit2:#272347}}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
 header{padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
@@ -14,26 +14,30 @@ h1{font-size:1.3rem;margin:0}
 h2{font-size:1rem;margin:0 0 12px}
 main{padding:0 16px 40px;max-width:1100px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px}
+.grid .card{margin:0}
 .kpi .lbl{font-size:.8rem;color:var(--mut)}
 .kpi .val{font-size:1.4rem;font-weight:700;margin-top:4px}
 .bar{height:14px;background:var(--bd);border-radius:7px;overflow:hidden;margin:8px 0}
 .bar>div{height:100%;background:var(--pri);transition:width .3s}
 label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mut);gap:4px}
-input,select{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-width:0}
+input,select,textarea{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-width:0}
 button{font:inherit;padding:8px 14px;border:0;border-radius:8px;background:var(--pri);color:#fff;cursor:pointer}
 button.sec{background:var(--pri2);color:var(--pri)}
 button.del{background:none;color:var(--bad);padding:4px 8px}
+button.lnk{background:none;color:var(--mut);padding:4px 6px;font-size:.8rem;text-decoration:underline}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
 .tbl{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.88rem}
 th,td{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
 th{color:var(--mut);font-weight:600}
 td.n,th.n{text-align:right}
+tr.cancel td{opacity:.55}
 .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75rem;cursor:pointer;border:1px solid var(--bd)}
 .pill.ok{background:var(--pri2);color:var(--pri);border-color:transparent}
 .pill.prev{color:var(--warn)}
 .pill.canc{color:var(--bad);text-decoration:line-through}
+.tag{display:inline-block;padding:1px 6px;border-radius:6px;font-size:.72rem;background:var(--vit2);color:var(--vit)}
 .mut{color:var(--mut);font-size:.85rem}
 .tabs{display:flex;gap:6px;flex-wrap:wrap}
 .tabs button{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
@@ -59,7 +63,7 @@ td.n,th.n{text-align:right}
     <div class="row" style="justify-content:space-between">
       <h2 style="margin:0">Meta do mês</h2>
       <div class="row">
-        <label>Mês<input type="month" id="mesSel"></label>
+        <label>Mês de recebimento<input type="month" id="mesSel"></label>
         <label>Meta (R$)<input type="number" id="metaMes" min="0" step="50" style="width:130px"></label>
       </div>
     </div>
@@ -67,18 +71,18 @@ td.n,th.n{text-align:right}
     <div class="mut" id="txtMeta"></div>
   </div>
   <div class="grid">
-    <div class="card kpi"><div class="lbl">Total de vendas no mês</div><div class="val" id="kTotVend"></div></div>
-    <div class="card kpi"><div class="lbl">Quantidade de vendas</div><div class="val" id="kQtd"></div></div>
-    <div class="card kpi"><div class="lbl">Comissão média por venda</div><div class="val" id="kMedia"></div></div>
+    <div class="card kpi"><div class="lbl">Comissão prevista no mês</div><div class="val" id="kPrev"></div><div class="mut" id="kPrevDet"></div></div>
     <div class="card kpi"><div class="lbl">Já recebido no mês</div><div class="val" id="kRec"></div></div>
-  </div>
-  <div class="grid">
-    <div class="card kpi"><div class="lbl">Comissão acumulada</div><div class="val" id="kPrev"></div><div class="mut" id="kPrevDet"></div></div>
     <div class="card kpi"><div class="lbl">Falta para a meta</div><div class="val" id="kFalta"></div></div>
-    <div class="card kpi"><div class="lbl">Ainda preciso vender</div><div class="val" id="kPreciso"></div></div>
+    <div class="card kpi"><div class="lbl">Vitalício no mês</div><div class="val" id="kVit"></div><div class="mut" id="kVitDet"></div></div>
+  </div>
+  <h2 id="tVendas"></h2>
+  <div class="grid">
+    <div class="card kpi"><div class="lbl">Total de vendas</div><div class="val" id="kTotVend"></div><div class="mut" id="kQtd"></div></div>
+    <div class="card kpi"><div class="lbl">Comissão média por venda</div><div class="val" id="kMedia"></div></div>
+    <div class="card kpi"><div class="lbl">Ainda preciso vender</div><div class="val" id="kPreciso"></div><div class="mut" id="txtVendas"></div></div>
     <div class="card kpi"><div class="lbl">Preciso vender por dia útil</div><div class="val" id="kDia"></div><div class="mut" id="kDias"></div></div>
   </div>
-  <p class="mut" id="txtVendas"></p>
   <div class="card">
     <h2>Simulador rápido</h2>
     <div class="row">
@@ -87,7 +91,10 @@ td.n,th.n{text-align:right}
     </div>
   </div>
   <div class="card">
-    <h2>Parcelas de comissão do mês</h2>
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h2 style="margin:0">Comissões do mês</h2>
+      <button class="sec" id="bRecTudo">Marcar tudo como recebido</button>
+    </div>
     <div class="tbl"><table id="tbMes"></table></div>
   </div>
 </section>
@@ -99,9 +106,8 @@ td.n,th.n{text-align:right}
     <form id="fVenda" class="row">
       <label>Cliente<input name="cliente" required></label>
       <label>Operadora<input name="operadora" list="ops" placeholder="Ex.: Amil"></label>
-      <label>Vigência (1ª parcela)<input type="date" name="data" required></label>
+      <label>Pagamento da 1ª parcela<input type="date" name="data" required></label>
       <label>Mensalidade (R$)<input type="number" name="valor" min="0" step="0.01" required></label>
-      <label>Vidas<input type="number" name="vidas" min="1" value="1" style="width:70px"></label>
       <button>Adicionar</button>
     </form>
     <datalist id="ops"><option>Amil<option>Bradesco Saúde<option>SulAmérica<option>Unimed<option>Porto Saúde<option>Hapvida NotreDame<option>Prevent Senior<option>Alice</datalist>
@@ -111,7 +117,7 @@ td.n,th.n{text-align:right}
       <h2 style="margin:0">Vendas cadastradas</h2>
       <input id="busca" placeholder="Buscar cliente/operadora">
     </div>
-    <p class="mut">Clique numa parcela para alternar: <span class="pill prev">prevista</span> → <span class="pill ok">recebida</span> → <span class="pill canc">cancelada</span></p>
+    <p class="mut">Cada parcela mostra o mês em que a comissão cai. Clique para alternar: <span class="pill prev">prevista</span> → <span class="pill ok">recebida</span> → <span class="pill canc">cancelada</span>. Se o cliente parar de pagar, use <b>cancelar contrato</b> para encerrar o vitalício.</p>
     <div class="tbl"><table id="tbVendas"></table></div>
   </div>
 </section>
@@ -120,6 +126,7 @@ td.n,th.n{text-align:right}
 <section id="mensal" class="hide">
   <div class="card">
     <h2>Resumo mês a mês</h2>
+    <p class="mut">Meses futuros mostram o que já está garantido pelas vendas cadastradas (parcelas restantes + vitalício).</p>
     <div class="tbl"><table id="tbMensal"></table></div>
   </div>
 </section>
@@ -131,15 +138,16 @@ td.n,th.n{text-align:right}
     <div class="row">
       <label>% de comissão por parcela<input type="number" id="cPct" min="0" step="0.5"></label>
       <label>Nº de parcelas comissionadas<input type="number" id="cParc" min="1" max="24"></label>
-      <label>Recebe a comissão quantos meses após a parcela?<input type="number" id="cDelay" min="0" max="6"></label>
+      <label>% vitalício (após as parcelas)<input type="number" id="cVit" min="0" step="0.5"></label>
+      <label>Recebe a comissão quantos meses após o pagamento?<input type="number" id="cDelay" min="0" max="6"></label>
       <label>Meta padrão mensal (R$)<input type="number" id="cMeta" min="0" step="50"></label>
-      <label>A meta considera<select id="cModo"><option value="total">Toda comissão do mês (1ª, 2ª e 3ª parcelas)</option><option value="novas">Só comissão das vendas novas do mês</option></select></label>
+      <label>A meta considera<select id="cModo"><option value="total">Toda comissão do mês (parcelas + vitalício)</option><option value="novas">Só a comissão da 1ª parcela (vendas novas)</option></select></label>
     </div>
   </div>
   <div class="card">
     <h2>Importar vendas da planilha</h2>
     <p class="mut">No Google Sheets, selecione as colunas <b>Data, Cliente, Valor da Venda</b> e cole aqui (Ctrl+V).</p>
-    <textarea id="txtImp" rows="6" style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)" placeholder="12/06/2026	JANILENE DA SILVA BARBOSA	R$ 1.642,14"></textarea>
+    <textarea id="txtImp" rows="6" style="width:100%" placeholder="12/06/2026	JANILENE DA SILVA BARBOSA	R$ 1.642,14"></textarea>
     <div class="row" style="margin-top:8px"><button id="bImpTxt">Importar</button><span class="mut" id="impRes"></span></div>
   </div>
   <div class="card">
@@ -157,27 +165,45 @@ td.n,th.n{text-align:right}
 <script>
 const KEY='lorena-comissoes-v1';
 const brl=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const ym=d=>d.toISOString().slice(0,7);
-const addM=(s,n)=>{const [y,m]=s.split('-').map(Number);const d=new Date(Date.UTC(y,m-1+n,1));return ym(d)};
+const ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const addM=(s,n)=>{const [y,m]=s.split('-').map(Number);return ym(new Date(y,m-1+n,1))};
+const mdiff=(a,b)=>{const [y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-').map(Number);return (y2-y1)*12+m2-m1};
 const fmtM=s=>{const [y,m]=s.split('-');return new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const hojeM=ym(new Date());
 
-let db={cfg:{pct:20,parc:3,delay:0,meta:10000,modo:'total'},metas:{},vendas:[]};
-try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);db=Object.assign(db,d,{cfg:Object.assign(db.cfg,d.cfg)})}}catch(e){}
+const PADRAO={pct:20,parc:3,vit:2,delay:1,meta:10000,modo:'total',ver:2};
+let db={cfg:{...PADRAO},metas:{},vendas:[]};
+// dados salvos pela versão 1 (sem vitalício, comissão no mesmo mês) passam para as regras novas
+function migrar(d){const v1=((d.cfg&&d.cfg.ver)||1)<2;d.cfg=Object.assign({},PADRAO,d.cfg);if(v1){d.cfg.delay=1;d.cfg.vit=2;d.cfg.ver=2}d.metas=d.metas||{};return d}
+try{const s=localStorage.getItem(KEY);if(s)db=migrar(JSON.parse(s))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render()};
 
-// status de cada parcela: 'p' prevista, 'r' recebida, 'c' cancelada
-function parcelas(v){
-  const out=[];const base=v.data.slice(0,7);
-  for(let i=0;i<db.cfg.parc;i++){
-    const st=(v.st&&v.st[i])||'p';
-    out.push({v,i,st,mes:addM(base,i+Number(db.cfg.delay)),valor:v.valor*db.cfg.pct/100});
-  }
-  return out;
+// k = nº da parcela (0 = 1ª). Comissão da parcela k cai em mês_pagamento(k) + delay.
+// k < parc → % de parcela; depois → vitalício, até o mês de cancelamento do contrato.
+// status: 'p' prevista, 'r' recebida, 'c' cancelada
+const baseDe=v=>v.data.slice(0,7);
+function entrada(v,k){
+  if(k<0)return null;
+  const pag=addM(baseDe(v),k);
+  if(v.cancel&&pag>=v.cancel)return null;
+  const vit=k>=db.cfg.parc;
+  if(vit&&!(db.cfg.vit>0))return null;
+  const st=(v.st&&v.st[k])||'p';
+  return {v,k,vit,st,pag,mes:addM(pag,Number(db.cfg.delay)),valor:v.valor*(vit?db.cfg.vit:db.cfg.pct)/100};
 }
-const todas=()=>db.vendas.flatMap(parcelas);
-const doMes=m=>todas().filter(p=>p.mes===m&&p.st!=='c');
+const entradaMes=(v,m)=>entrada(v,mdiff(baseDe(v),m)-Number(db.cfg.delay));
+const doMes=(m,comCanc)=>db.vendas.map(v=>entradaMes(v,m)).filter(e=>e&&(comCanc||e.st!=='c'));
 const metaDe=m=>db.metas[m]??db.cfg.meta;
+const nomeK=e=>e.vit?`Vitalício (${e.k+1}ª)`:`${e.k+1}ª parcela`;
+const soma=a=>a.reduce((s,e)=>s+e.valor,0);
+// meses do primeiro recebimento até 12 meses à frente
+function faixaMeses(extra){
+  const lim=[hojeM,extra].filter(Boolean);
+  const ini=[...db.vendas.map(v=>addM(baseDe(v),Number(db.cfg.delay))),...lim].sort()[0];
+  const fim=[addM(hojeM,12),...lim].sort().pop();
+  const out=[];for(let m=ini;m<=fim;m=addM(m,1))out.push(m);return out;
+}
 // dias úteis (seg–sex) de hoje até o fim do mês m; mês futuro conta inteiro, passado = 0
 function diasUteis(m){
   const [y,mo]=m.split('-').map(Number);const hoje=new Date();hoje.setHours(0,0,0,0);
@@ -188,81 +214,95 @@ function diasUteis(m){
 }
 
 const $=id=>document.getElementById(id);
-const mesSel=$('mesSel');mesSel.value=ym(new Date());
+const mesSel=$('mesSel');mesSel.value=addM(hojeM,Number(db.cfg.delay));
 
 function render(){
+  const c=db.cfg,delay=Number(c.delay);
   // painel
-  const m=mesSel.value;const ps=doMes(m);
-  const novas=ps.filter(p=>p.i===0),antigas=ps.filter(p=>p.i>0);
-  const soma=a=>a.reduce((s,p)=>s+p.valor,0);
-  const prev=db.cfg.modo==='novas'?soma(novas):soma(ps);
-  const rec=soma(ps.filter(p=>p.st==='r'));
+  const m=mesSel.value||hojeM;const es=doMes(m);
+  const p1=es.filter(e=>e.k===0),pN=es.filter(e=>e.k>0&&!e.vit),vit=es.filter(e=>e.vit);
+  const prev=c.modo==='novas'?soma(p1):soma(es);
+  const rec=soma((c.modo==='novas'?p1:es).filter(e=>e.st==='r'));
   const meta=metaDe(m);const falta=Math.max(0,meta-prev);
   $('metaMes').value=meta;
-  const vendasMes=db.vendas.filter(v=>addM(v.data.slice(0,7),Number(db.cfg.delay))===m);
-  const totVend=vendasMes.reduce((a,v)=>a+v.valor,0);
-  $('kTotVend').textContent=brl(totVend);$('kQtd').textContent=vendasMes.length;
-  $('kMedia').textContent=brl(vendasMes.length?soma(novas)/vendasMes.length:0);
   $('kPrev').textContent=brl(prev);$('kRec').textContent=brl(rec);
-  $('kPrevDet').textContent=db.cfg.modo==='novas'?'só vendas novas':`${brl(soma(novas))} novas + ${brl(soma(antigas))} de parcelas anteriores`;
+  $('kPrevDet').textContent=c.modo==='novas'?'só 1ª parcela':`1ª: ${brl(soma(p1))} · demais: ${brl(soma(pN))} · vitalício: ${brl(soma(vit))}`;
   $('kFalta').textContent=falta?brl(falta):'Meta batida! 🎉';
-  const preciso=db.cfg.pct?falta/(db.cfg.pct/100):0;
-  const dias=diasUteis(m);
-  $('kPreciso').textContent=brl(preciso);
-  $('kDia').textContent=dias?brl(preciso/dias):'-';
-  $('kDias').textContent=`${dias} dias úteis restantes`;
+  $('kVit').textContent=brl(soma(vit));$('kVitDet').textContent=`${vit.length} contratos ativos`;
   const pc=meta?Math.min(100,prev/meta*100):0;
   $('barMeta').style.width=pc+'%';
   $('txtMeta').textContent=`${pc.toFixed(0)}% da meta de ${brl(meta)} atingida (${brl(prev)}).`;
-  const ativos=db.vendas;const ticket=ativos.length?ativos.reduce((a,v)=>a+v.valor,0)/ativos.length:Number($('simValor').value)||0;
-  const porVenda=ticket*db.cfg.pct/100;
-  $('txtVendas').textContent=falta&&porVenda?`≈ ${Math.ceil(falta/porVenda)} vendas no ticket médio de ${brl(ticket)} (${brl(porVenda)} de comissão por venda).`:'';
-  const sv=Number($('simValor').value)||0;const c=sv*db.cfg.pct/100;
-  $('simRes').textContent=`${brl(c)} por parcela × ${db.cfg.parc} = ${brl(c*db.cfg.parc)} no total.`;
-  $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Parcela</th><th class="n">Comissão</th><th>Status</th></tr>'+
-    (ps.map(p=>`<tr><td>${esc(p.v.cliente)}</td><td>${esc(p.v.operadora||'')}</td><td>${p.i+1}ª</td><td class="n">${brl(p.valor)}</td><td>${pill(p)}</td></tr>`).join('')||'<tr><td colspan=5 class="mut">Nenhuma parcela neste mês.</td></tr>');
+  // vendas que pagam a 1ª comissão neste mês
+  const mv=addM(m,-delay);
+  const vendasMes=db.vendas.filter(v=>baseDe(v)===mv);
+  $('tVendas').textContent=`Vendas de ${fmtM(mv)}`+(delay?` (comissão da 1ª parcela cai em ${fmtM(m)})`:'');
+  $('kTotVend').textContent=brl(vendasMes.reduce((a,v)=>a+v.valor,0));
+  $('kQtd').textContent=`${vendasMes.length} vendas`;
+  $('kMedia').textContent=brl(vendasMes.length?soma(p1)/vendasMes.length:0);
+  const preciso=c.pct?falta/(c.pct/100):0;const dias=diasUteis(mv);
+  $('kPreciso').textContent=brl(preciso);
+  $('kDia').textContent=!falta?brl(0):dias?brl(preciso/dias):'prazo encerrado';
+  $('kDias').textContent=`${dias} dias úteis restantes em ${fmtM(mv)}`;
+  const ticket=db.vendas.length?db.vendas.reduce((a,v)=>a+v.valor,0)/db.vendas.length:Number($('simValor').value)||0;
+  const porVenda=ticket*c.pct/100;
+  $('txtVendas').textContent=falta&&porVenda?`≈ ${Math.ceil(falta/porVenda)} vendas no ticket médio de ${brl(ticket)}`:'';
+  const sv=Number($('simValor').value)||0,cp=sv*c.pct/100,cv=sv*c.vit/100,ano=cp*c.parc+cv*Math.max(0,12-c.parc);
+  $('simRes').textContent=`${brl(cp)} por parcela × ${c.parc} = ${brl(cp*c.parc)}`+(c.vit?`; depois ${brl(cv)}/mês vitalício. Em 12 meses: ${brl(ano)}.`:'.');
+  const esC=doMes(m,true).sort((a,b)=>a.vit-b.vit||a.k-b.k);
+  $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Tipo</th><th class="n">Comissão</th><th>Status</th></tr>'+
+    (esC.map(e=>`<tr><td>${esc(e.v.cliente)}</td><td>${esc(e.v.operadora||'')}</td><td>${e.vit?`<span class="tag">${nomeK(e)}</span>`:nomeK(e)}</td><td class="n">${brl(e.valor)}</td><td>${pill(e)}</td></tr>`).join('')||'<tr><td colspan=5 class="mut">Nenhuma comissão neste mês.</td></tr>');
 
   // vendas
   const q=($('busca').value||'').toLowerCase();
   const vs=[...db.vendas].sort((a,b)=>b.data.localeCompare(a.data)).filter(v=>(v.cliente+' '+(v.operadora||'')).toLowerCase().includes(q));
-  let h='<tr><th>Vigência</th><th>Cliente</th><th>Operadora</th><th>Vidas</th><th class="n">Mensalidade</th>';
-  for(let i=0;i<db.cfg.parc;i++)h+=`<th>${i+1}ª parcela</th>`;
-  h+='<th class="n">Total</th><th></th></tr>';
-  h+=vs.map(v=>{const ps=parcelas(v);const tot=ps.filter(p=>p.st!=='c').reduce((a,p)=>a+p.valor,0);
-    return `<tr><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(v.cliente)}</td><td>${esc(v.operadora||'')}</td><td>${v.vidas||1}</td><td class="n">${brl(v.valor)}</td>`+
-    ps.map(p=>`<td>${pill(p,true)}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td><td><button class="del" data-del="${v.id}" title="Excluir">✕</button></td></tr>`}).join('');
-  if(!vs.length)h+=`<tr><td colspan=${7+db.cfg.parc} class="mut">Nenhuma venda cadastrada.</td></tr>`;
+  let h='<tr><th>1º pagamento</th><th>Cliente</th><th>Operadora</th><th class="n">Mensalidade</th>';
+  for(let i=0;i<c.parc;i++)h+=`<th>${i+1}ª parcela</th>`;
+  h+=`<th class="n">Total parcelas</th>${c.vit?'<th>Vitalício</th>':''}<th></th></tr>`;
+  h+=vs.map(v=>{const ps=[];for(let k=0;k<c.parc;k++)ps.push(entrada(v,k));
+    const tot=soma(ps.filter(e=>e&&e.st!=='c'));
+    const iniVit=addM(baseDe(v),c.parc+delay);
+    const vitTxt=v.cancel?(v.cancel<=addM(baseDe(v),c.parc)?'—':`até ${fmtM(addM(v.cancel,delay-1))}`):`${brl(v.valor*c.vit/100)}/mês desde ${fmtM(iniVit)}`;
+    return `<tr class="${v.cancel?'cancel':''}"><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(v.cliente)}${v.cancel?` <span class="pill canc">cancelado ${fmtM(v.cancel)}</span>`:''}</td><td>${esc(v.operadora||'')}</td><td class="n">${brl(v.valor)}</td>`+
+    ps.map(e=>`<td>${e?pill(e,true):'—'}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td>${c.vit?`<td><span class="tag">${vitTxt}</span></td>`:''}`+
+    `<td><button class="lnk" data-canc="${v.id}">${v.cancel?'reativar':'cancelar contrato'}</button><button class="del" data-del="${v.id}" title="Excluir">✕</button></td></tr>`}).join('');
+  if(!vs.length)h+=`<tr><td colspan=${7+c.parc} class="mut">Nenhuma venda cadastrada.</td></tr>`;
   $('tbVendas').innerHTML=h;
 
   // mensal
-  const all=todas();const meses=new Set(all.map(p=>p.mes));meses.add(m);
-  const lista=[...meses].sort();
-  $('tbMensal').innerHTML='<tr><th>Mês</th><th class="n">Previsto</th><th class="n">Recebido</th><th class="n">Meta</th><th class="n">Diferença</th><th>%</th></tr>'+
-    lista.map(mm=>{const p=all.filter(x=>x.mes===mm&&x.st!=='c');const pv=p.reduce((a,x)=>a+x.valor,0);const rc=p.filter(x=>x.st==='r').reduce((a,x)=>a+x.valor,0);const mt=metaDe(mm);const d=pv-mt;
-      return `<tr><td>${fmtM(mm)}</td><td class="n">${brl(pv)}</td><td class="n">${brl(rc)}</td><td class="n">${brl(mt)}</td><td class="n" style="color:${d>=0?'var(--pri)':'var(--bad)'}">${brl(d)}</td><td>${mt?(pv/mt*100).toFixed(0)+'%':'-'}</td></tr>`}).join('');
+  $('tbMensal').innerHTML='<tr><th>Mês</th><th class="n">1ª parcela</th><th class="n">Demais parcelas</th><th class="n">Vitalício</th><th class="n">Total previsto</th><th class="n">Recebido</th><th class="n">Meta</th><th class="n">Diferença</th><th>%</th></tr>'+
+    faixaMeses(m).map(mm=>{const x=doMes(mm);const a=soma(x.filter(e=>e.k===0)),b=soma(x.filter(e=>e.k>0&&!e.vit)),vv=soma(x.filter(e=>e.vit));
+      const pv=c.modo==='novas'?a:a+b+vv,rc=soma(x.filter(e=>e.st==='r')),mt=metaDe(mm),d=pv-mt;
+      return `<tr${mm===hojeM?' style="font-weight:700"':''}><td>${fmtM(mm)}</td><td class="n">${brl(a)}</td><td class="n">${brl(b)}</td><td class="n">${brl(vv)}</td><td class="n">${brl(a+b+vv)}</td><td class="n">${brl(rc)}</td><td class="n">${brl(mt)}</td><td class="n" style="color:${d>=0?'var(--pri)':'var(--bad)'}">${brl(d)}</td><td>${mt?(pv/mt*100).toFixed(0)+'%':'-'}</td></tr>`}).join('');
 
   // config
-  $('cPct').value=db.cfg.pct;$('cParc').value=db.cfg.parc;$('cDelay').value=db.cfg.delay;$('cMeta').value=db.cfg.meta;$('cModo').value=db.cfg.modo;
+  $('cPct').value=c.pct;$('cParc').value=c.parc;$('cVit').value=c.vit;$('cDelay').value=c.delay;$('cMeta').value=c.meta;$('cModo').value=c.modo;
 }
 const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc'};
-function pill(p,showMes){return `<span class="pill ${cls[p.st]}" data-v="${p.v.id}" data-i="${p.i}">${showMes?fmtM(p.mes)+' · '+brl(p.valor):lbl[p.st]}</span>`}
+function pill(e,showMes){return `<span class="pill ${cls[e.st]}" data-v="${e.v.id}" data-k="${e.k}">${showMes?fmtM(e.mes)+' · '+brl(e.valor):lbl[e.st]}</span>`}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function setSt(v,k,st){if(!Array.isArray(v.st))v.st=[];v.st[k]=st}
 
 // eventos
 $('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   ['painel','vendas','mensal','config'].forEach(s=>$(s).classList.toggle('hide',s!==t))};
 mesSel.onchange=render;$('simValor').oninput=render;$('busca').oninput=render;
 $('metaMes').onchange=e=>{db.metas[mesSel.value]=Number(e.target.value)||0;save()};
+$('bRecTudo').onclick=()=>{doMes(mesSel.value).forEach(e=>setSt(e.v,e.k,'r'));save()};
 $('fVenda').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
-  db.vendas.push({id:uid(),cliente:f.get('cliente').trim(),operadora:f.get('operadora').trim(),data:f.get('data'),valor:Number(f.get('valor')),vidas:Number(f.get('vidas'))||1,st:[]});
+  db.vendas.push({id:uid(),cliente:f.get('cliente').trim(),operadora:f.get('operadora').trim(),data:f.get('data'),valor:Number(f.get('valor')),st:[]});
   e.target.reset();save()};
 document.body.addEventListener('click',e=>{
   const pl=e.target.closest('.pill[data-v]');
-  if(pl){const v=db.vendas.find(x=>x.id===pl.dataset.v);const i=+pl.dataset.i;v.st=v.st||[];v.st[i]={p:'r',r:'c',c:'p'}[v.st[i]||'p'];save();return}
+  if(pl){const v=db.vendas.find(x=>x.id===pl.dataset.v);const k=+pl.dataset.k;setSt(v,k,{p:'r',r:'c',c:'p'}[(v.st&&v.st[k])||'p']);save();return}
   const d=e.target.dataset.del;
-  if(d&&confirm('Excluir esta venda?')){db.vendas=db.vendas.filter(v=>v.id!==d);save()}
+  if(d&&confirm('Excluir esta venda?')){db.vendas=db.vendas.filter(v=>v.id!==d);save();return}
+  const cc=e.target.dataset.canc;
+  if(cc){const v=db.vendas.find(x=>x.id===cc);
+    if(v.cancel){delete v.cancel;save();return}
+    const r=prompt('Primeiro mês que o cliente NÃO pagou (AAAA-MM).\nAs comissões a partir daí deixam de contar.',hojeM);
+    if(r&&/^\d{4}-\d{2}$/.test(r.trim())){v.cancel=r.trim();save()}else if(r)alert('Use o formato AAAA-MM, ex.: '+hojeM)}
 });
-[['cPct','pct'],['cParc','parc'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
+[['cPct','pct'],['cParc','parc'],['cVit','vit'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
 $('cModo').onchange=e=>{db.cfg.modo=e.target.value;save()};
 // aceita "dd/mm/aaaa" ou "aaaa-mm-dd"; valor "R$ 1.642,14", "1642,14" ou "1642.14"
 const parseData=s=>{s=s.trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:null};
@@ -270,14 +310,14 @@ const parseValor=s=>{s=s.replace(/[R$\s]/g,'');if(s.includes(','))s=s.replace(/\
 $('bImpTxt').onclick=()=>{let ok=0,ruim=0;
   $('txtImp').value.split(/\r?\n/).forEach(l=>{if(!l.trim())return;const c=l.split(/\t|;/);const data=parseData(c[0]||'');const valor=parseValor(c[2]||'');
     if(!data||!(valor>0)||!c[1]?.trim()){ruim++;return}
-    db.vendas.push({id:uid(),cliente:c[1].trim(),operadora:'',data,valor,vidas:1,st:[]});ok++});
+    db.vendas.push({id:uid(),cliente:c[1].trim(),operadora:'',data,valor,st:[]});ok++});
   $('txtImp').value='';$('impRes').textContent=`${ok} vendas importadas${ruim?`, ${ruim} linhas ignoradas`:''}.`;save()};
 function baixar(nome,conteudo,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([conteudo],{type:tipo}));a.download=nome;a.click()}
-$('bExp').onclick=()=>baixar(`lorena-comissoes-${ym(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
-$('bCsv').onclick=()=>{const l=[['Cliente','Operadora','Vigencia','Mensalidade','Vidas','Parcela','Mes recebimento','Comissao','Status']];
-  todas().forEach(p=>l.push([p.v.cliente,p.v.operadora,p.v.data,p.v.valor,p.v.vidas,p.i+1,p.mes,p.valor.toFixed(2),lbl[p.st]]));
+$('bExp').onclick=()=>baixar(`lorena-comissoes-${hojeM}.json`,JSON.stringify(db,null,2),'application/json');
+$('bCsv').onclick=()=>{const l=[['Cliente','Operadora','1o pagamento','Mensalidade','Tipo','Mes pagamento','Mes recebimento','Comissao','Status']];
+  faixaMeses().forEach(m=>doMes(m,true).forEach(e=>l.push([e.v.cliente,e.v.operadora,e.v.data,e.v.valor,nomeK(e),e.pag,e.mes,e.valor.toFixed(2),lbl[e.st]])));
   baixar('comissoes.csv','﻿'+l.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\n'),'text/csv')};
-$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=Object.assign({cfg:db.cfg,metas:{}},d);save()}}catch(_){alert('Arquivo inválido')}})};
+$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=migrar(d);mesSel.value=addM(hojeM,Number(db.cfg.delay));save()}}catch(_){alert('Arquivo inválido')}})};
 render();
 </script>
 </body>
