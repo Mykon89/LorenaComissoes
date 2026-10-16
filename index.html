@@ -67,10 +67,16 @@ td.n,th.n{text-align:right}
     <div class="mut" id="txtMeta"></div>
   </div>
   <div class="grid">
-    <div class="card kpi"><div class="lbl">Comissão prevista no mês</div><div class="val" id="kPrev"></div></div>
+    <div class="card kpi"><div class="lbl">Total de vendas no mês</div><div class="val" id="kTotVend"></div></div>
+    <div class="card kpi"><div class="lbl">Quantidade de vendas</div><div class="val" id="kQtd"></div></div>
+    <div class="card kpi"><div class="lbl">Comissão média por venda</div><div class="val" id="kMedia"></div></div>
     <div class="card kpi"><div class="lbl">Já recebido no mês</div><div class="val" id="kRec"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card kpi"><div class="lbl">Comissão acumulada</div><div class="val" id="kPrev"></div><div class="mut" id="kPrevDet"></div></div>
     <div class="card kpi"><div class="lbl">Falta para a meta</div><div class="val" id="kFalta"></div></div>
-    <div class="card kpi"><div class="lbl">Vendas necessárias*</div><div class="val" id="kVendas"></div></div>
+    <div class="card kpi"><div class="lbl">Ainda preciso vender</div><div class="val" id="kPreciso"></div></div>
+    <div class="card kpi"><div class="lbl">Preciso vender por dia útil</div><div class="val" id="kDia"></div><div class="mut" id="kDias"></div></div>
   </div>
   <p class="mut" id="txtVendas"></p>
   <div class="card">
@@ -127,7 +133,14 @@ td.n,th.n{text-align:right}
       <label>Nº de parcelas comissionadas<input type="number" id="cParc" min="1" max="24"></label>
       <label>Recebe a comissão quantos meses após a parcela?<input type="number" id="cDelay" min="0" max="6"></label>
       <label>Meta padrão mensal (R$)<input type="number" id="cMeta" min="0" step="50"></label>
+      <label>A meta considera<select id="cModo"><option value="total">Toda comissão do mês (1ª, 2ª e 3ª parcelas)</option><option value="novas">Só comissão das vendas novas do mês</option></select></label>
     </div>
+  </div>
+  <div class="card">
+    <h2>Importar vendas da planilha</h2>
+    <p class="mut">No Google Sheets, selecione as colunas <b>Data, Cliente, Valor da Venda</b> e cole aqui (Ctrl+V).</p>
+    <textarea id="txtImp" rows="6" style="width:100%;font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)" placeholder="12/06/2026	JANILENE DA SILVA BARBOSA	R$ 1.642,14"></textarea>
+    <div class="row" style="margin-top:8px"><button id="bImpTxt">Importar</button><span class="mut" id="impRes"></span></div>
   </div>
   <div class="card">
     <h2>Backup</h2>
@@ -149,8 +162,8 @@ const addM=(s,n)=>{const [y,m]=s.split('-').map(Number);const d=new Date(Date.UT
 const fmtM=s=>{const [y,m]=s.split('-');return new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
-let db={cfg:{pct:20,parc:3,delay:0,meta:3000},metas:{},vendas:[]};
-try{const s=localStorage.getItem(KEY);if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
+let db={cfg:{pct:20,parc:3,delay:0,meta:10000,modo:'total'},metas:{},vendas:[]};
+try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);db=Object.assign(db,d,{cfg:Object.assign(db.cfg,d.cfg)})}}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render()};
 
 // status de cada parcela: 'p' prevista, 'r' recebida, 'c' cancelada
@@ -165,6 +178,14 @@ function parcelas(v){
 const todas=()=>db.vendas.flatMap(parcelas);
 const doMes=m=>todas().filter(p=>p.mes===m&&p.st!=='c');
 const metaDe=m=>db.metas[m]??db.cfg.meta;
+// dias úteis (seg–sex) de hoje até o fim do mês m; mês futuro conta inteiro, passado = 0
+function diasUteis(m){
+  const [y,mo]=m.split('-').map(Number);const hoje=new Date();hoje.setHours(0,0,0,0);
+  const ini=new Date(y,mo-1,1),fim=new Date(y,mo,0);
+  let d=hoje>ini?new Date(hoje):ini,n=0;
+  for(;d<=fim;d.setDate(d.getDate()+1))if(d.getDay()%6)n++;
+  return n;
+}
 
 const $=id=>document.getElementById(id);
 const mesSel=$('mesSel');mesSel.value=ym(new Date());
@@ -172,20 +193,30 @@ const mesSel=$('mesSel');mesSel.value=ym(new Date());
 function render(){
   // painel
   const m=mesSel.value;const ps=doMes(m);
-  const prev=ps.reduce((a,p)=>a+p.valor,0);
-  const rec=ps.filter(p=>p.st==='r').reduce((a,p)=>a+p.valor,0);
+  const novas=ps.filter(p=>p.i===0),antigas=ps.filter(p=>p.i>0);
+  const soma=a=>a.reduce((s,p)=>s+p.valor,0);
+  const prev=db.cfg.modo==='novas'?soma(novas):soma(ps);
+  const rec=soma(ps.filter(p=>p.st==='r'));
   const meta=metaDe(m);const falta=Math.max(0,meta-prev);
   $('metaMes').value=meta;
+  const vendasMes=db.vendas.filter(v=>addM(v.data.slice(0,7),Number(db.cfg.delay))===m);
+  const totVend=vendasMes.reduce((a,v)=>a+v.valor,0);
+  $('kTotVend').textContent=brl(totVend);$('kQtd').textContent=vendasMes.length;
+  $('kMedia').textContent=brl(vendasMes.length?soma(novas)/vendasMes.length:0);
   $('kPrev').textContent=brl(prev);$('kRec').textContent=brl(rec);
+  $('kPrevDet').textContent=db.cfg.modo==='novas'?'só vendas novas':`${brl(soma(novas))} novas + ${brl(soma(antigas))} de parcelas anteriores`;
   $('kFalta').textContent=falta?brl(falta):'Meta batida! 🎉';
+  const preciso=db.cfg.pct?falta/(db.cfg.pct/100):0;
+  const dias=diasUteis(m);
+  $('kPreciso').textContent=brl(preciso);
+  $('kDia').textContent=dias?brl(preciso/dias):'-';
+  $('kDias').textContent=`${dias} dias úteis restantes`;
   const pc=meta?Math.min(100,prev/meta*100):0;
   $('barMeta').style.width=pc+'%';
-  $('txtMeta').textContent=`${pc.toFixed(0)}% da meta de ${brl(meta)} (previsto ${brl(prev)}).`;
+  $('txtMeta').textContent=`${pc.toFixed(0)}% da meta de ${brl(meta)} atingida (${brl(prev)}).`;
   const ativos=db.vendas;const ticket=ativos.length?ativos.reduce((a,v)=>a+v.valor,0)/ativos.length:Number($('simValor').value)||0;
   const porVenda=ticket*db.cfg.pct/100;
-  // venda feita no mês só gera 1ª parcela neste mês (se delay 0)
-  $('kVendas').textContent=falta&&porVenda?Math.ceil(falta/porVenda):'0';
-  $('txtVendas').textContent=`* Novas vendas com vigência em ${fmtM(addM(m,-db.cfg.delay))} necessárias para fechar a meta, usando ticket médio de ${brl(ticket)} (${brl(porVenda)} de comissão na 1ª parcela).`;
+  $('txtVendas').textContent=falta&&porVenda?`≈ ${Math.ceil(falta/porVenda)} vendas no ticket médio de ${brl(ticket)} (${brl(porVenda)} de comissão por venda).`:'';
   const sv=Number($('simValor').value)||0;const c=sv*db.cfg.pct/100;
   $('simRes').textContent=`${brl(c)} por parcela × ${db.cfg.parc} = ${brl(c*db.cfg.parc)} no total.`;
   $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Parcela</th><th class="n">Comissão</th><th>Status</th></tr>'+
@@ -211,7 +242,7 @@ function render(){
       return `<tr><td>${fmtM(mm)}</td><td class="n">${brl(pv)}</td><td class="n">${brl(rc)}</td><td class="n">${brl(mt)}</td><td class="n" style="color:${d>=0?'var(--pri)':'var(--bad)'}">${brl(d)}</td><td>${mt?(pv/mt*100).toFixed(0)+'%':'-'}</td></tr>`}).join('');
 
   // config
-  $('cPct').value=db.cfg.pct;$('cParc').value=db.cfg.parc;$('cDelay').value=db.cfg.delay;$('cMeta').value=db.cfg.meta;
+  $('cPct').value=db.cfg.pct;$('cParc').value=db.cfg.parc;$('cDelay').value=db.cfg.delay;$('cMeta').value=db.cfg.meta;$('cModo').value=db.cfg.modo;
 }
 const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc'};
 function pill(p,showMes){return `<span class="pill ${cls[p.st]}" data-v="${p.v.id}" data-i="${p.i}">${showMes?fmtM(p.mes)+' · '+brl(p.valor):lbl[p.st]}</span>`}
@@ -232,6 +263,15 @@ document.body.addEventListener('click',e=>{
   if(d&&confirm('Excluir esta venda?')){db.vendas=db.vendas.filter(v=>v.id!==d);save()}
 });
 [['cPct','pct'],['cParc','parc'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
+$('cModo').onchange=e=>{db.cfg.modo=e.target.value;save()};
+// aceita "dd/mm/aaaa" ou "aaaa-mm-dd"; valor "R$ 1.642,14", "1642,14" ou "1642.14"
+const parseData=s=>{s=s.trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:null};
+const parseValor=s=>{s=s.replace(/[R$\s]/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');return Number(s)};
+$('bImpTxt').onclick=()=>{let ok=0,ruim=0;
+  $('txtImp').value.split(/\r?\n/).forEach(l=>{if(!l.trim())return;const c=l.split(/\t|;/);const data=parseData(c[0]||'');const valor=parseValor(c[2]||'');
+    if(!data||!(valor>0)||!c[1]?.trim()){ruim++;return}
+    db.vendas.push({id:uid(),cliente:c[1].trim(),operadora:'',data,valor,vidas:1,st:[]});ok++});
+  $('txtImp').value='';$('impRes').textContent=`${ok} vendas importadas${ruim?`, ${ruim} linhas ignoradas`:''}.`;save()};
 function baixar(nome,conteudo,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([conteudo],{type:tipo}));a.download=nome;a.click()}
 $('bExp').onclick=()=>baixar(`lorena-comissoes-${ym(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
 $('bCsv').onclick=()=>{const l=[['Cliente','Operadora','Vigencia','Mensalidade','Vidas','Parcela','Mes recebimento','Comissao','Status']];
