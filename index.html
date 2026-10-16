@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lorena Comissões</title>
+<style>
+:root{--bg:#f5f6fa;--card:#fff;--tx:#1d2330;--mut:#6b7385;--pri:#0b7a5c;--pri2:#e3f4ee;--warn:#c27a00;--bad:#c0392b;--bd:#e3e6ee}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b1f29;--tx:#e8ebf2;--mut:#99a1b3;--pri:#3cc596;--pri2:#163a2f;--bd:#2a3040}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font-size:1.3rem;margin:0}
+h2{font-size:1rem;margin:0 0 12px}
+main{padding:0 16px 40px;max-width:1100px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi .lbl{font-size:.8rem;color:var(--mut)}
+.kpi .val{font-size:1.4rem;font-weight:700;margin-top:4px}
+.bar{height:14px;background:var(--bd);border-radius:7px;overflow:hidden;margin:8px 0}
+.bar>div{height:100%;background:var(--pri);transition:width .3s}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mut);gap:4px}
+input,select{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-width:0}
+button{font:inherit;padding:8px 14px;border:0;border-radius:8px;background:var(--pri);color:#fff;cursor:pointer}
+button.sec{background:var(--pri2);color:var(--pri)}
+button.del{background:none;color:var(--bad);padding:4px 8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:8px 6px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:600}
+td.n,th.n{text-align:right}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75rem;cursor:pointer;border:1px solid var(--bd)}
+.pill.ok{background:var(--pri2);color:var(--pri);border-color:transparent}
+.pill.prev{color:var(--warn)}
+.pill.canc{color:var(--bad);text-decoration:line-through}
+.mut{color:var(--mut);font-size:.85rem}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>💼 Lorena Comissões</h1>
+  <div class="tabs" id="tabs">
+    <button data-t="painel" class="on">Painel</button>
+    <button data-t="vendas">Vendas</button>
+    <button data-t="mensal">Mês a mês</button>
+    <button data-t="config">Configurações</button>
+  </div>
+</header>
+<main>
+
+<!-- PAINEL -->
+<section id="painel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Meta do mês</h2>
+      <div class="row">
+        <label>Mês<input type="month" id="mesSel"></label>
+        <label>Meta (R$)<input type="number" id="metaMes" min="0" step="50" style="width:130px"></label>
+      </div>
+    </div>
+    <div class="bar"><div id="barMeta" style="width:0"></div></div>
+    <div class="mut" id="txtMeta"></div>
+  </div>
+  <div class="grid">
+    <div class="card kpi"><div class="lbl">Comissão prevista no mês</div><div class="val" id="kPrev"></div></div>
+    <div class="card kpi"><div class="lbl">Já recebido no mês</div><div class="val" id="kRec"></div></div>
+    <div class="card kpi"><div class="lbl">Falta para a meta</div><div class="val" id="kFalta"></div></div>
+    <div class="card kpi"><div class="lbl">Vendas necessárias*</div><div class="val" id="kVendas"></div></div>
+  </div>
+  <p class="mut" id="txtVendas"></p>
+  <div class="card">
+    <h2>Simulador rápido</h2>
+    <div class="row">
+      <label>Mensalidade do plano (R$)<input type="number" id="simValor" min="0" step="10" value="500"></label>
+      <div class="mut" id="simRes" style="padding-bottom:8px"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Parcelas de comissão do mês</h2>
+    <div class="tbl"><table id="tbMes"></table></div>
+  </div>
+</section>
+
+<!-- VENDAS -->
+<section id="vendas" class="hide">
+  <div class="card">
+    <h2>Nova venda</h2>
+    <form id="fVenda" class="row">
+      <label>Cliente<input name="cliente" required></label>
+      <label>Operadora<input name="operadora" list="ops" placeholder="Ex.: Amil"></label>
+      <label>Vigência (1ª parcela)<input type="date" name="data" required></label>
+      <label>Mensalidade (R$)<input type="number" name="valor" min="0" step="0.01" required></label>
+      <label>Vidas<input type="number" name="vidas" min="1" value="1" style="width:70px"></label>
+      <button>Adicionar</button>
+    </form>
+    <datalist id="ops"><option>Amil<option>Bradesco Saúde<option>SulAmérica<option>Unimed<option>Porto Saúde<option>Hapvida NotreDame<option>Prevent Senior<option>Alice</datalist>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px">
+      <h2 style="margin:0">Vendas cadastradas</h2>
+      <input id="busca" placeholder="Buscar cliente/operadora">
+    </div>
+    <p class="mut">Clique numa parcela para alternar: <span class="pill prev">prevista</span> → <span class="pill ok">recebida</span> → <span class="pill canc">cancelada</span></p>
+    <div class="tbl"><table id="tbVendas"></table></div>
+  </div>
+</section>
+
+<!-- MENSAL -->
+<section id="mensal" class="hide">
+  <div class="card">
+    <h2>Resumo mês a mês</h2>
+    <div class="tbl"><table id="tbMensal"></table></div>
+  </div>
+</section>
+
+<!-- CONFIG -->
+<section id="config" class="hide">
+  <div class="card">
+    <h2>Regras de comissão</h2>
+    <div class="row">
+      <label>% de comissão por parcela<input type="number" id="cPct" min="0" step="0.5"></label>
+      <label>Nº de parcelas comissionadas<input type="number" id="cParc" min="1" max="24"></label>
+      <label>Recebe a comissão quantos meses após a parcela?<input type="number" id="cDelay" min="0" max="6"></label>
+      <label>Meta padrão mensal (R$)<input type="number" id="cMeta" min="0" step="50"></label>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Backup</h2>
+    <p class="mut">Os dados ficam salvos neste navegador. Faça backup periódico.</p>
+    <div class="row">
+      <button id="bExp">Exportar backup (.json)</button>
+      <button class="sec" id="bCsv">Exportar planilha (.csv)</button>
+      <label class="sec" style="flex-direction:row;align-items:center"><input type="file" id="fImp" accept=".json"> Importar backup</label>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+const KEY='lorena-comissoes-v1';
+const brl=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const ym=d=>d.toISOString().slice(0,7);
+const addM=(s,n)=>{const [y,m]=s.split('-').map(Number);const d=new Date(Date.UTC(y,m-1+n,1));return ym(d)};
+const fmtM=s=>{const [y,m]=s.split('-');return new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+let db={cfg:{pct:20,parc:3,delay:0,meta:3000},metas:{},vendas:[]};
+try{const s=localStorage.getItem(KEY);if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render()};
+
+// status de cada parcela: 'p' prevista, 'r' recebida, 'c' cancelada
+function parcelas(v){
+  const out=[];const base=v.data.slice(0,7);
+  for(let i=0;i<db.cfg.parc;i++){
+    const st=(v.st&&v.st[i])||'p';
+    out.push({v,i,st,mes:addM(base,i+Number(db.cfg.delay)),valor:v.valor*db.cfg.pct/100});
+  }
+  return out;
+}
+const todas=()=>db.vendas.flatMap(parcelas);
+const doMes=m=>todas().filter(p=>p.mes===m&&p.st!=='c');
+const metaDe=m=>db.metas[m]??db.cfg.meta;
+
+const $=id=>document.getElementById(id);
+const mesSel=$('mesSel');mesSel.value=ym(new Date());
+
+function render(){
+  // painel
+  const m=mesSel.value;const ps=doMes(m);
+  const prev=ps.reduce((a,p)=>a+p.valor,0);
+  const rec=ps.filter(p=>p.st==='r').reduce((a,p)=>a+p.valor,0);
+  const meta=metaDe(m);const falta=Math.max(0,meta-prev);
+  $('metaMes').value=meta;
+  $('kPrev').textContent=brl(prev);$('kRec').textContent=brl(rec);
+  $('kFalta').textContent=falta?brl(falta):'Meta batida! 🎉';
+  const pc=meta?Math.min(100,prev/meta*100):0;
+  $('barMeta').style.width=pc+'%';
+  $('txtMeta').textContent=`${pc.toFixed(0)}% da meta de ${brl(meta)} (previsto ${brl(prev)}).`;
+  const ativos=db.vendas;const ticket=ativos.length?ativos.reduce((a,v)=>a+v.valor,0)/ativos.length:Number($('simValor').value)||0;
+  const porVenda=ticket*db.cfg.pct/100;
+  // venda feita no mês só gera 1ª parcela neste mês (se delay 0)
+  $('kVendas').textContent=falta&&porVenda?Math.ceil(falta/porVenda):'0';
+  $('txtVendas').textContent=`* Novas vendas com vigência em ${fmtM(addM(m,-db.cfg.delay))} necessárias para fechar a meta, usando ticket médio de ${brl(ticket)} (${brl(porVenda)} de comissão na 1ª parcela).`;
+  const sv=Number($('simValor').value)||0;const c=sv*db.cfg.pct/100;
+  $('simRes').textContent=`${brl(c)} por parcela × ${db.cfg.parc} = ${brl(c*db.cfg.parc)} no total.`;
+  $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Parcela</th><th class="n">Comissão</th><th>Status</th></tr>'+
+    (ps.map(p=>`<tr><td>${esc(p.v.cliente)}</td><td>${esc(p.v.operadora||'')}</td><td>${p.i+1}ª</td><td class="n">${brl(p.valor)}</td><td>${pill(p)}</td></tr>`).join('')||'<tr><td colspan=5 class="mut">Nenhuma parcela neste mês.</td></tr>');
+
+  // vendas
+  const q=($('busca').value||'').toLowerCase();
+  const vs=[...db.vendas].sort((a,b)=>b.data.localeCompare(a.data)).filter(v=>(v.cliente+' '+(v.operadora||'')).toLowerCase().includes(q));
+  let h='<tr><th>Vigência</th><th>Cliente</th><th>Operadora</th><th>Vidas</th><th class="n">Mensalidade</th>';
+  for(let i=0;i<db.cfg.parc;i++)h+=`<th>${i+1}ª parcela</th>`;
+  h+='<th class="n">Total</th><th></th></tr>';
+  h+=vs.map(v=>{const ps=parcelas(v);const tot=ps.filter(p=>p.st!=='c').reduce((a,p)=>a+p.valor,0);
+    return `<tr><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(v.cliente)}</td><td>${esc(v.operadora||'')}</td><td>${v.vidas||1}</td><td class="n">${brl(v.valor)}</td>`+
+    ps.map(p=>`<td>${pill(p,true)}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td><td><button class="del" data-del="${v.id}" title="Excluir">✕</button></td></tr>`}).join('');
+  if(!vs.length)h+=`<tr><td colspan=${7+db.cfg.parc} class="mut">Nenhuma venda cadastrada.</td></tr>`;
+  $('tbVendas').innerHTML=h;
+
+  // mensal
+  const all=todas();const meses=new Set(all.map(p=>p.mes));meses.add(m);
+  const lista=[...meses].sort();
+  $('tbMensal').innerHTML='<tr><th>Mês</th><th class="n">Previsto</th><th class="n">Recebido</th><th class="n">Meta</th><th class="n">Diferença</th><th>%</th></tr>'+
+    lista.map(mm=>{const p=all.filter(x=>x.mes===mm&&x.st!=='c');const pv=p.reduce((a,x)=>a+x.valor,0);const rc=p.filter(x=>x.st==='r').reduce((a,x)=>a+x.valor,0);const mt=metaDe(mm);const d=pv-mt;
+      return `<tr><td>${fmtM(mm)}</td><td class="n">${brl(pv)}</td><td class="n">${brl(rc)}</td><td class="n">${brl(mt)}</td><td class="n" style="color:${d>=0?'var(--pri)':'var(--bad)'}">${brl(d)}</td><td>${mt?(pv/mt*100).toFixed(0)+'%':'-'}</td></tr>`}).join('');
+
+  // config
+  $('cPct').value=db.cfg.pct;$('cParc').value=db.cfg.parc;$('cDelay').value=db.cfg.delay;$('cMeta').value=db.cfg.meta;
+}
+const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc'};
+function pill(p,showMes){return `<span class="pill ${cls[p.st]}" data-v="${p.v.id}" data-i="${p.i}">${showMes?fmtM(p.mes)+' · '+brl(p.valor):lbl[p.st]}</span>`}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+// eventos
+$('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  ['painel','vendas','mensal','config'].forEach(s=>$(s).classList.toggle('hide',s!==t))};
+mesSel.onchange=render;$('simValor').oninput=render;$('busca').oninput=render;
+$('metaMes').onchange=e=>{db.metas[mesSel.value]=Number(e.target.value)||0;save()};
+$('fVenda').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  db.vendas.push({id:uid(),cliente:f.get('cliente').trim(),operadora:f.get('operadora').trim(),data:f.get('data'),valor:Number(f.get('valor')),vidas:Number(f.get('vidas'))||1,st:[]});
+  e.target.reset();save()};
+document.body.addEventListener('click',e=>{
+  const pl=e.target.closest('.pill[data-v]');
+  if(pl){const v=db.vendas.find(x=>x.id===pl.dataset.v);const i=+pl.dataset.i;v.st=v.st||[];v.st[i]={p:'r',r:'c',c:'p'}[v.st[i]||'p'];save();return}
+  const d=e.target.dataset.del;
+  if(d&&confirm('Excluir esta venda?')){db.vendas=db.vendas.filter(v=>v.id!==d);save()}
+});
+[['cPct','pct'],['cParc','parc'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
+function baixar(nome,conteudo,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([conteudo],{type:tipo}));a.download=nome;a.click()}
+$('bExp').onclick=()=>baixar(`lorena-comissoes-${ym(new Date())}.json`,JSON.stringify(db,null,2),'application/json');
+$('bCsv').onclick=()=>{const l=[['Cliente','Operadora','Vigencia','Mensalidade','Vidas','Parcela','Mes recebimento','Comissao','Status']];
+  todas().forEach(p=>l.push([p.v.cliente,p.v.operadora,p.v.data,p.v.valor,p.v.vidas,p.i+1,p.mes,p.valor.toFixed(2),lbl[p.st]]));
+  baixar('comissoes.csv','﻿'+l.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\n'),'text/csv')};
+$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=Object.assign({cfg:db.cfg,metas:{}},d);save()}}catch(_){alert('Arquivo inválido')}})};
+render();
+</script>
+</body>
+</html>
