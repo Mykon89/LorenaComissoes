@@ -51,7 +51,10 @@ export default async function handler(req, res) {
   if (!(REST_URL && REST_TOKEN) && !REDIS_URL) return res.status(503).json({ erro: 'nao_configurado' });
   const senha = String(req.headers['x-senha'] || '');
   try {
-    if (!(await senhaOk(senha))) return res.status(401).json({ erro: 'senha' });
+    if (!(await senhaOk(senha))) {
+      const nova = !process.env.SENHA && !(await get(CHAVE_SENHA));
+      return res.status(401).json({ erro: 'senha', nova });
+    }
     if (req.method === 'GET') return res.status(200).json(await ler());
     if (req.method === 'PUT') {
       const atual = await ler();
