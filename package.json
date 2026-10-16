@@ -1,1 +1,7 @@
-{ "type": "module", "private": true }
+{
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "redis": "^4.7.0"
+  }
+}

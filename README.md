@@ -16,7 +16,7 @@ Sistema simples (um único `index.html`, sem instalação) para acompanhar comis
 Os dados ficam no navegador (localStorage).
 
 ## Sincronizar entre aparelhos (Vercel)
-1. Vercel → projeto → **Storage** → Create → **Upstash for Redis** (plano grátis) → conectar ao projeto.
+1. Vercel → projeto → **Storage** → criar um banco **Redis** (ou Upstash for Redis), plano grátis, e conectar ao projeto.
 2. **Deployments** → Redeploy.
 3. Abra o site: a senha digitada no **primeiro acesso** vira a senha oficial (fica gravada no banco).
    Opcional: definir a variável de ambiente `SENHA` na Vercel, que tem prioridade.
