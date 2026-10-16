@@ -222,9 +222,22 @@ const nuvem={on:false,ver:0,t:null,
   },
   bloquear(){this.on=false;document.body.classList.add('locked');$('carregando').classList.add('hide');$('login').classList.remove('hide');$('loginSenha').value='';$('loginSenha').focus()},
   liberar(){document.body.classList.remove('locked');$('carregando').classList.add('hide');$('login').classList.add('hide')},
+  // polling: busca alterações feitas em outros aparelhos e atualiza a tela sozinho
+  async verificar(){
+    if(!this.on||this.t||this.enviando||document.hidden)return;
+    let r;try{r=await this.req('GET')}catch(e){return}
+    if(r.status===401){try{localStorage.removeItem('lorena-senha')}catch(e){}$('loginMsg').textContent='A senha mudou. Digite a senha do sistema.';this.bloquear();return this.status('🔒 bloqueado')}
+    if(r.status!==200||!r.dados.db||r.dados.ver<=this.ver||this.t||this.enviando)return;
+    // não atrapalha quem está digitando: tenta de novo no próximo ciclo
+    const foco=document.activeElement;if(foco&&/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)&&foco.id!=='busca')return;
+    this.ver=r.dados.ver;db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}
+    render();this.status('☁️ atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  },
   agendar(){if(!this.on)return;this.status('⏳ salvando…');clearTimeout(this.t);this.t=setTimeout(()=>this.enviar(),800)},
   async enviar(){
-    let r;try{r=await this.req('PUT',{ver:this.ver,db})}catch(e){return this.status('⚠️ sem conexão: alterações não sincronizadas')}
+    this.t=null;this.enviando=true;
+    let r;try{r=await this.req('PUT',{ver:this.ver,db})}catch(e){this.enviando=false;return this.status('⚠️ sem conexão: alterações não sincronizadas')}
+    this.enviando=false;
     if(r.status===200){this.ver=r.dados.ver;return this.status('☁️ sincronizado')}
     if(r.status===409){alert('Os dados foram alterados em outro aparelho. Vou carregar a versão mais recente; refaça a última alteração.');this.ver=r.dados.ver;db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render();return this.status('☁️ sincronizado')}
     if(r.status===401){try{localStorage.removeItem('lorena-senha')}catch(e){}$('loginMsg').textContent='A senha mudou. Digite a senha do sistema.';this.bloquear();return this.status('🔒 bloqueado')}
@@ -406,6 +419,8 @@ $('login').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('lorena-senh
 $('bSair').onclick=()=>{if(!confirm('Sair deste aparelho? Os dados continuam salvos no servidor; aqui será pedida a senha de novo.'))return;try{localStorage.removeItem('lorena-senha');localStorage.removeItem(KEY)}catch(e){}location.reload()};
 $('bSenha').onclick=()=>{try{localStorage.removeItem('lorena-senha')}catch(e){}nuvem.on=false;nuvem.iniciar()};
 render();nuvem.iniciar();
+setInterval(()=>nuvem.verificar(),15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)nuvem.verificar()});
 </script>
 </body>
 </html>
