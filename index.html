@@ -138,7 +138,8 @@ tr.cancel td{opacity:.55}
     <div class="row">
       <label>% de comissão por parcela<input type="number" id="cPct" min="0" step="0.5"></label>
       <label>Nº de parcelas comissionadas<input type="number" id="cParc" min="1" max="24"></label>
-      <label>% vitalício (após as parcelas)<input type="number" id="cVit" min="0" step="0.5"></label>
+      <label>% vitalício da parcela (após as parcelas)<input type="number" id="cVit" min="0" step="0.5"></label>
+      <label>% que ela recebe sobre o vitalício<input type="number" id="cVitPart" min="0" step="0.5"></label>
       <label>Recebe a comissão quantos meses após o pagamento?<input type="number" id="cDelay" min="0" max="6"></label>
       <label>Meta padrão mensal (R$)<input type="number" id="cMeta" min="0" step="50"></label>
       <label>A meta considera<select id="cModo"><option value="total">Toda comissão do mês (parcelas + vitalício)</option><option value="novas">Só a comissão da 1ª parcela (vendas novas)</option></select></label>
@@ -172,7 +173,7 @@ const fmtM=s=>{const [y,m]=s.split('-');return new Date(y,m-1,1).toLocaleDateStr
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const hojeM=ym(new Date());
 
-const PADRAO={pct:20,parc:3,vit:2,delay:1,meta:10000,modo:'total',ver:2};
+const PADRAO={pct:20,parc:3,vit:2,vitPart:20,delay:1,meta:10000,modo:'total',ver:2};
 let db={cfg:{...PADRAO},metas:{},vendas:[]};
 // dados salvos pela versão 1 (sem vitalício, comissão no mesmo mês) passam para as regras novas
 function migrar(d){const v1=((d.cfg&&d.cfg.ver)||1)<2;d.cfg=Object.assign({},PADRAO,d.cfg);if(v1){d.cfg.delay=1;d.cfg.vit=2;d.cfg.ver=2}d.metas=d.metas||{};return d}
@@ -180,7 +181,7 @@ try{const s=localStorage.getItem(KEY);if(s)db=migrar(JSON.parse(s))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render()};
 
 // k = nº da parcela (0 = 1ª). Comissão da parcela k cai em mês_pagamento(k) + delay.
-// k < parc → % de parcela; depois → vitalício, até o mês de cancelamento do contrato.
+// k < parc → % de parcela; depois → vitalício (vitPart% sobre vit% da mensalidade), até o cancelamento do contrato.
 // status: 'p' prevista, 'r' recebida, 'c' cancelada
 const baseDe=v=>v.data.slice(0,7);
 function entrada(v,k){
@@ -190,8 +191,9 @@ function entrada(v,k){
   const vit=k>=db.cfg.parc;
   if(vit&&!(db.cfg.vit>0))return null;
   const st=(v.st&&v.st[k])||'p';
-  return {v,k,vit,st,pag,mes:addM(pag,Number(db.cfg.delay)),valor:v.valor*(vit?db.cfg.vit:db.cfg.pct)/100};
+  return {v,k,vit,st,pag,mes:addM(pag,Number(db.cfg.delay)),valor:vit?vitDe(v.valor):v.valor*db.cfg.pct/100};
 }
+const vitDe=valor=>valor*db.cfg.vit/100*db.cfg.vitPart/100;
 const entradaMes=(v,m)=>entrada(v,mdiff(baseDe(v),m)-Number(db.cfg.delay));
 const doMes=(m,comCanc)=>db.vendas.map(v=>entradaMes(v,m)).filter(e=>e&&(comCanc||e.st!=='c'));
 const metaDe=m=>db.metas[m]??db.cfg.meta;
@@ -246,7 +248,7 @@ function render(){
   const ticket=db.vendas.length?db.vendas.reduce((a,v)=>a+v.valor,0)/db.vendas.length:Number($('simValor').value)||0;
   const porVenda=ticket*c.pct/100;
   $('txtVendas').textContent=falta&&porVenda?`≈ ${Math.ceil(falta/porVenda)} vendas no ticket médio de ${brl(ticket)}`:'';
-  const sv=Number($('simValor').value)||0,cp=sv*c.pct/100,cv=sv*c.vit/100,ano=cp*c.parc+cv*Math.max(0,12-c.parc);
+  const sv=Number($('simValor').value)||0,cp=sv*c.pct/100,cv=vitDe(sv),ano=cp*c.parc+cv*Math.max(0,12-c.parc);
   $('simRes').textContent=`${brl(cp)} por parcela × ${c.parc} = ${brl(cp*c.parc)}`+(c.vit?`; depois ${brl(cv)}/mês vitalício. Em 12 meses: ${brl(ano)}.`:'.');
   const esC=doMes(m,true).sort((a,b)=>a.vit-b.vit||a.k-b.k);
   $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Tipo</th><th class="n">Comissão</th><th>Status</th></tr>'+
@@ -261,7 +263,7 @@ function render(){
   h+=vs.map(v=>{const ps=[];for(let k=0;k<c.parc;k++)ps.push(entrada(v,k));
     const tot=soma(ps.filter(e=>e&&e.st!=='c'));
     const iniVit=addM(baseDe(v),c.parc+delay);
-    const vitTxt=v.cancel?(v.cancel<=addM(baseDe(v),c.parc)?'—':`até ${fmtM(addM(v.cancel,delay-1))}`):`${brl(v.valor*c.vit/100)}/mês desde ${fmtM(iniVit)}`;
+    const vitTxt=v.cancel?(v.cancel<=addM(baseDe(v),c.parc)?'—':`até ${fmtM(addM(v.cancel,delay-1))}`):`${brl(vitDe(v.valor))}/mês desde ${fmtM(iniVit)}`;
     return `<tr class="${v.cancel?'cancel':''}"><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(v.cliente)}${v.cancel?` <span class="pill canc">cancelado ${fmtM(v.cancel)}</span>`:''}</td><td>${esc(v.operadora||'')}</td><td class="n">${brl(v.valor)}</td>`+
     ps.map(e=>`<td>${e?pill(e,true):'—'}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td>${c.vit?`<td><span class="tag">${vitTxt}</span></td>`:''}`+
     `<td><button class="lnk" data-canc="${v.id}">${v.cancel?'reativar':'cancelar contrato'}</button><button class="del" data-del="${v.id}" title="Excluir">✕</button></td></tr>`}).join('');
@@ -275,7 +277,7 @@ function render(){
       return `<tr${mm===hojeM?' style="font-weight:700"':''}><td>${fmtM(mm)}</td><td class="n">${brl(a)}</td><td class="n">${brl(b)}</td><td class="n">${brl(vv)}</td><td class="n">${brl(a+b+vv)}</td><td class="n">${brl(rc)}</td><td class="n">${brl(mt)}</td><td class="n" style="color:${d>=0?'var(--pri)':'var(--bad)'}">${brl(d)}</td><td>${mt?(pv/mt*100).toFixed(0)+'%':'-'}</td></tr>`}).join('');
 
   // config
-  $('cPct').value=c.pct;$('cParc').value=c.parc;$('cVit').value=c.vit;$('cDelay').value=c.delay;$('cMeta').value=c.meta;$('cModo').value=c.modo;
+  $('cPct').value=c.pct;$('cParc').value=c.parc;$('cVit').value=c.vit;$('cVitPart').value=c.vitPart;$('cDelay').value=c.delay;$('cMeta').value=c.meta;$('cModo').value=c.modo;
 }
 const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc'};
 function pill(e,showMes){return `<span class="pill ${cls[e.st]}" data-v="${e.v.id}" data-k="${e.k}">${showMes?fmtM(e.mes)+' · '+brl(e.valor):lbl[e.st]}</span>`}
@@ -302,7 +304,7 @@ document.body.addEventListener('click',e=>{
     const r=prompt('Primeiro mês que o cliente NÃO pagou (AAAA-MM).\nAs comissões a partir daí deixam de contar.',hojeM);
     if(r&&/^\d{4}-\d{2}$/.test(r.trim())){v.cancel=r.trim();save()}else if(r)alert('Use o formato AAAA-MM, ex.: '+hojeM)}
 });
-[['cPct','pct'],['cParc','parc'],['cVit','vit'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
+[['cPct','pct'],['cParc','parc'],['cVit','vit'],['cVitPart','vitPart'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
 $('cModo').onchange=e=>{db.cfg.modo=e.target.value;save()};
 // aceita "dd/mm/aaaa" ou "aaaa-mm-dd"; valor "R$ 1.642,14", "1642,14" ou "1642.14"
 const parseData=s=>{s=s.trim();let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m){const y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`}m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:null};

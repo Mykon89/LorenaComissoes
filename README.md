@@ -4,7 +4,7 @@ Sistema simples (um único `index.html`, sem instalação) para acompanhar comis
 
 ## Regras (configuráveis)
 - **20%** sobre as **3 primeiras** mensalidades.
-- Depois disso, **vitalício de 2%** ao mês enquanto o contrato estiver ativo.
+- Depois disso, **vitalício**: 20% sobre 2% da mensalidade (0,4%) ao mês enquanto o contrato estiver ativo.
 - A comissão cai **1 mês após** o pagamento da parcela (paga em junho → recebe em julho).
 
 ## Telas
