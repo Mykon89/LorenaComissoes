@@ -53,6 +53,16 @@ tr.cancel td{opacity:.55}
 .mesnav button.sec{padding:8px 12px;font-weight:700}
 .mesnav select{min-width:170px;cursor:pointer}
 body.locked main>section,body.locked #tabs{display:none}
+.modal-bg{position:fixed;inset:0;background:rgba(10,14,20,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;animation:fade .15s ease-out}
+.modal-bg.hide{display:none}
+.modal{background:var(--card);color:var(--tx);border-radius:14px;padding:20px;width:100%;max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:sobe .18s ease-out}
+.modal h2{margin:0 0 8px}
+.modal .campos{display:flex;flex-direction:column;gap:12px;margin:14px 0}
+.modal .campos input,.modal .campos select{width:100%;font-size:1rem}
+.modal .acoes{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.modal .erro{color:var(--bad);font-size:.85rem;min-height:1em;margin:0}
+button.perigo{background:var(--bad)}
+@keyframes fade{from{opacity:0}}@keyframes sobe{from{transform:translateY(12px);opacity:0}}
 </style>
 </head>
 <body class="locked">
@@ -67,14 +77,19 @@ body.locked main>section,body.locked #tabs{display:none}
 </header>
 <main>
 <p class="mut" id="carregando" style="text-align:center">Carregando…</p>
-<form class="card hide" id="login" style="border-color:var(--pri)">
-  <h2>🔒 Senha para sincronizar</h2>
+<div class="modal-bg hide" id="login"><form class="modal" id="loginForm">
+  <h2>🔒 Lorena Comissões</h2>
   <p class="mut" id="loginMsg"></p>
-  <div class="row">
-    <label>Senha<input type="password" id="loginSenha" autocomplete="current-password" required minlength="4"></label>
-    <button>Entrar</button>
-  </div>
-</form>
+  <div class="campos"><label>Senha<input type="password" id="loginSenha" autocomplete="current-password" required minlength="4"></label></div>
+  <div class="acoes"><button>Entrar</button></div>
+</form></div>
+<div class="modal-bg hide" id="dlg"><form class="modal" id="dlgForm" novalidate>
+  <h2 id="dlgTit"></h2>
+  <div class="mut" id="dlgTxt"></div>
+  <div class="campos" id="dlgCampos"></div>
+  <p class="erro" id="dlgErro"></p>
+  <div class="acoes"><button type="button" class="sec" id="dlgCancel">Cancelar</button><button id="dlgOk">OK</button></div>
+</form></div>
 
 <!-- PAINEL -->
 <section id="painel">
@@ -254,7 +269,7 @@ const nuvem={on:false,ver:0,t:null,
     let r;try{r=await this.req('PUT',{ver:this.ver,db})}catch(e){this.enviando=false;return this.status('⚠️ sem conexão: alterações não sincronizadas')}
     this.enviando=false;
     if(r.status===200){this.ver=r.dados.ver;return this.status('☁️ sincronizado')}
-    if(r.status===409){alert('Os dados foram alterados em outro aparelho. Vou carregar a versão mais recente; refaça a última alteração.');this.ver=r.dados.ver;db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render();return this.status('☁️ sincronizado')}
+    if(r.status===409){ui.alerta('Dados atualizados','Os dados foram alterados em outro aparelho. Carreguei a versão mais recente; refaça a última alteração.');this.ver=r.dados.ver;db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render();return this.status('☁️ sincronizado')}
     if(r.status===401){try{localStorage.removeItem('lorena-senha')}catch(e){}$('loginMsg').textContent='A senha mudou. Digite a senha do sistema.';this.bloquear();return this.status('🔒 bloqueado')}
     this.status('⚠️ erro ao salvar no servidor ('+r.status+')');
   }};
@@ -382,14 +397,55 @@ const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc
 const valTxt=e=>e.aj?`<span title="valor corrigido manualmente">${brl(e.valor)}*</span>`:brl(e.valor);
 function pill(e,showMes){return `<span class="pill ${cls[e.st]}" data-v="${e.v.id}" data-k="${e.k}">${showMes?fmtM(e.mes)+' · '+valTxt(e):lbl[e.st]}</span>`}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function corrigir(v,k){
-  const e=entrada(v,k);if(!e)return;
-  const r=prompt(`${v.cliente}\n${nomeK(e)} (recebe em ${fmtM(e.mes)})\n\nValor que realmente caiu (R$). Vale para esta e as seguintes do mesmo tipo.\nDeixe em branco para voltar ao cálculo automático.`,e.aj?String(e.valor.toFixed(2)).replace('.',','):'');
-  if(r===null)return;
-  v.aj=v.aj||{};
-  if(!r.trim())delete v.aj[k];
-  else{const n=parseValor(r);if(!(n>=0))return alert('Valor inválido');v.aj[k]=Math.round(n*100)/100;if(e.mes<=hojeM)setSt(v,k,'r')}
+// ---- modais (substituem alert/confirm/prompt) ----
+const fmtV=n=>n.toFixed(2).replace('.',',');
+const opcoesMeses=(ini,fim)=>{const o=[];for(let m=ini;m<=fim;m=addM(m,1))o.push([m,nomeMes(m)]);return o};
+const ui={
+  abrir({titulo,texto='',campos=[],ok='OK',cancelar='Cancelar',perigo=false,validar}){
+    return new Promise(res=>{
+      $('dlgTit').textContent=titulo;$('dlgTxt').innerHTML=texto;$('dlgErro').textContent='';
+      $('dlgCampos').innerHTML=campos.map(c=>`<label>${c.label}${c.opcoes
+        ?`<select name="${c.nome}">${c.opcoes.map(([v,t])=>`<option value="${v}"${v===c.valor?' selected':''}>${t}</option>`).join('')}</select>`
+        :`<input name="${c.nome}" value="${esc(c.valor??'')}" ${c.tipo==='valor'?'inputmode="decimal" placeholder="0,00"':''}>`}${c.ajuda?`<span class="mut">${c.ajuda}</span>`:''}</label>`).join('');
+      $('dlgOk').textContent=ok;$('dlgOk').classList.toggle('perigo',perigo);
+      $('dlgCancel').textContent=cancelar;$('dlgCancel').classList.toggle('hide',cancelar===null);
+      const fim=r=>{$('dlg').classList.add('hide');document.removeEventListener('keydown',esc_);res(r)};
+      const esc_=e=>{if(e.key==='Escape')fim(null)};document.addEventListener('keydown',esc_);
+      $('dlgCancel').onclick=()=>fim(null);
+      $('dlg').onclick=e=>{if(e.target.id==='dlg')fim(null)};
+      $('dlgForm').onsubmit=e=>{e.preventDefault();const vals=Object.fromEntries(new FormData($('dlgForm')));
+        const erro=validar&&validar(vals);if(erro){$('dlgErro').textContent=erro;return}fim(vals)};
+      $('dlg').classList.remove('hide');
+      const f=$('dlgCampos').querySelector('input,select');(f||$('dlgOk')).focus();if(f&&f.select)f.select();
+    });
+  },
+  alerta(titulo,texto){return this.abrir({titulo,texto,cancelar:null})},
+  async confirmar(titulo,texto,ok='Confirmar',perigo=false){return !!(await this.abrir({titulo,texto,ok,perigo}))},
+};
+const validaValor=c=>vals=>{const t=vals[c].trim();if(t&&!(parseValor(t)>=0))return 'Digite um valor válido, ex.: 5,71'};
+function aplicarAjuste(v,k,txt){
+  const e=entrada(v,k);v.aj=v.aj||{};
+  if(!txt.trim())delete v.aj[k];
+  else{v.aj[k]=Math.round(parseValor(txt)*100)/100;if(e&&e.mes<=hojeM)setSt(v,k,'r')}
   save();
+}
+async function corrigir(v,k){
+  const e=entrada(v,k);if(!e)return;
+  const r=await ui.abrir({titulo:'Corrigir valor',ok:'Salvar',
+    texto:`<b>${esc(v.cliente)}</b><br>${nomeK(e)} · recebe em ${nomeMes(e.mes)}<br>Calculado: ${brl(e.vit?vitDe(v.valor):v.valor*db.cfg.pct/100)}`,
+    campos:[{nome:'valor',label:'Valor que realmente caiu (R$)',tipo:'valor',valor:e.aj?fmtV(e.valor):'',ajuda:'Vale para esta e as seguintes do mesmo tipo. Deixe em branco para voltar ao cálculo automático.'}],
+    validar:validaValor('valor')});
+  if(r)aplicarAjuste(v,k,r.valor);
+}
+async function corrigirVit(v){
+  const delay=Number(db.cfg.delay),ini=addM(baseDe(v),db.cfg.parc+delay),sug=ini>hojeM?ini:hojeM;
+  const e=entradaMes(v,sug);
+  const r=await ui.abrir({titulo:'Corrigir vitalício',ok:'Salvar',
+    texto:`<b>${esc(v.cliente)}</b><br>Calculado: ${brl(vitDe(v.valor))}/mês`,
+    campos:[{nome:'mes',label:'A partir do mês de recebimento',valor:sug,opcoes:opcoesMeses(ini,addM(hojeM,24))},
+            {nome:'valor',label:'Valor que realmente caiu (R$)',tipo:'valor',valor:e&&e.aj?fmtV(e.valor):'',ajuda:'Vale para este mês e os seguintes. Deixe em branco para voltar ao cálculo automático.'}],
+    validar:validaValor('valor')});
+  if(r)aplicarAjuste(v,Math.max(db.cfg.parc,mdiff(baseDe(v),r.mes)-delay),r.valor);
 }
 function setSt(v,k,st){if(!Array.isArray(v.st))v.st=[];v.st[k]=st}
 
@@ -408,23 +464,20 @@ document.body.addEventListener('click',e=>{
   const ab=e.target.closest('[data-aj],[data-ajvit]');
   if(ab){
     const v=db.vendas.find(x=>x.id===(ab.dataset.aj||ab.dataset.ajvit));let k;
-    if(ab.dataset.ajvit){
-      const ini=addM(baseDe(v),db.cfg.parc+Number(db.cfg.delay));
-      const r=prompt('Corrigir o vitalício a partir de qual mês de recebimento? (AAAA-MM)',ini>hojeM?ini:hojeM);
-      if(!r)return;if(!/^\d{4}-\d{2}$/.test(r.trim()))return alert('Use o formato AAAA-MM');
-      k=Math.max(db.cfg.parc,mdiff(baseDe(v),r.trim())-Number(db.cfg.delay));
-    }else k=+ab.dataset.k;
-    corrigir(v,k);return;
+    if(ab.dataset.ajvit)corrigirVit(v);else corrigir(v,+ab.dataset.k);
+    return;
   }
   const pl=e.target.closest('.pill[data-v]');
   if(pl){const v=db.vendas.find(x=>x.id===pl.dataset.v);const k=+pl.dataset.k;setSt(v,k,{p:'r',r:'c',c:'p'}[(v.st&&v.st[k])||'p']);save();return}
   const d=e.target.dataset.del;
-  if(d&&confirm('Excluir esta venda?')){db.vendas=db.vendas.filter(v=>v.id!==d);save();return}
+  if(d){const v=db.vendas.find(x=>x.id===d);ui.confirmar('Excluir venda',`Excluir <b>${esc(v.cliente)}</b> e todas as comissões dela?`,'Excluir',true).then(ok=>{if(ok){db.vendas=db.vendas.filter(x=>x.id!==d);save()}});return}
   const cc=e.target.dataset.canc;
   if(cc){const v=db.vendas.find(x=>x.id===cc);
     if(v.cancel){delete v.cancel;save();return}
-    const r=prompt('Primeiro mês que o cliente NÃO pagou (AAAA-MM).\nAs comissões a partir daí deixam de contar.',hojeM);
-    if(r&&/^\d{4}-\d{2}$/.test(r.trim())){v.cancel=r.trim();save()}else if(r)alert('Use o formato AAAA-MM, ex.: '+hojeM)}
+    ui.abrir({titulo:'Cancelar contrato',ok:'Cancelar contrato',cancelar:'Voltar',perigo:true,
+      texto:`<b>${esc(v.cliente)}</b><br>As comissões a partir desse mês deixam de contar (inclusive o vitalício).`,
+      campos:[{nome:'mes',label:'Primeiro mês que o cliente NÃO pagou',valor:hojeM,opcoes:opcoesMeses(addM(baseDe(v),1),addM(hojeM,12))}]})
+      .then(r=>{if(r){v.cancel=r.mes;save()}})}
 });
 [['cPct','pct'],['cParc','parc'],['cVit','vit'],['cVitPart','vitPart'],['cDelay','delay'],['cMeta','meta']].forEach(([id,k])=>$(id).onchange=e=>{db.cfg[k]=Number(e.target.value)||0;if(k==='parc')db.cfg.parc=Math.max(1,db.cfg.parc);save()});
 $('cModo').onchange=e=>{db.cfg.modo=e.target.value;save()};
@@ -441,9 +494,9 @@ $('bExp').onclick=()=>baixar(`lorena-comissoes-${hojeM}.json`,JSON.stringify(db,
 $('bCsv').onclick=()=>{const l=[['Cliente','Operadora','1o pagamento','Mensalidade','Tipo','Mes pagamento','Mes recebimento','Comissao','Status']];
   faixaMeses().forEach(m=>doMes(m,true).forEach(e=>l.push([e.v.cliente,e.v.operadora,e.v.data,e.v.valor,nomeK(e),e.pag,e.mes,e.valor.toFixed(2),lbl[e.st]])));
   baixar('comissoes.csv','﻿'+l.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\n'),'text/csv')};
-$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=migrar(d);mesAtual=addM(hojeM,Number(db.cfg.delay));save()}}catch(_){alert('Arquivo inválido')}})};
-$('login').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('lorena-senha',$('loginSenha').value)}catch(_){}$('loginMsg').textContent='Verificando…';$('loginMsg').style.color='';nuvem.iniciar()};
-$('bSair').onclick=()=>{if(!confirm('Sair deste aparelho? Os dados continuam salvos no servidor; aqui será pedida a senha de novo.'))return;try{localStorage.removeItem('lorena-senha');localStorage.removeItem(KEY)}catch(e){}location.reload()};
+$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;ui.confirmar('Importar backup',`Substituir os dados atuais pelas <b>${d.vendas.length} vendas</b> do backup?`,'Substituir',true).then(ok=>{if(ok){db=migrar(d);mesAtual=addM(hojeM,Number(db.cfg.delay));save()}})}catch(_){ui.alerta('Arquivo inválido','Esse arquivo não é um backup do Lorena Comissões.')}e.target.value=''})};
+$('loginForm').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('lorena-senha',$('loginSenha').value)}catch(_){}$('loginMsg').textContent='Verificando…';$('loginMsg').style.color='';nuvem.iniciar()};
+$('bSair').onclick=async()=>{if(!(await ui.confirmar('Sair deste aparelho','Os dados continuam salvos no servidor. Neste aparelho será pedida a senha de novo.','Sair',true)))return;try{localStorage.removeItem('lorena-senha');localStorage.removeItem(KEY)}catch(e){}location.reload()};
 $('bSenha').onclick=()=>{try{localStorage.removeItem('lorena-senha')}catch(e){}nuvem.on=false;nuvem.iniciar()};
 render();nuvem.iniciar();
 setInterval(()=>nuvem.verificar(),15000);
