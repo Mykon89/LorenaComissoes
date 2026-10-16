@@ -18,8 +18,14 @@ main{padding:0 16px 40px;max-width:1100px;margin:0 auto}
 .grid .card{margin:0}
 .kpi .lbl{font-size:.8rem;color:var(--mut)}
 .kpi .val{font-size:1.4rem;font-weight:700;margin-top:4px}
-.bar{height:14px;background:var(--bd);border-radius:7px;overflow:hidden;margin:8px 0}
-.bar>div{height:100%;background:var(--pri);transition:width .3s}
+.meta-bar{position:relative;height:34px;background:var(--bd);border-radius:17px;overflow:hidden;margin:14px 0 6px}
+.meta-bar .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:17px;transition:width 1.2s cubic-bezier(.22,1,.36,1),background-color .6s}
+.meta-bar .prev{opacity:.35}
+.meta-bar .tick{position:absolute;top:0;bottom:0;width:2px;background:var(--card);opacity:.7}
+.meta-bar .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;color:var(--tx);text-shadow:0 0 4px var(--card)}
+.meta-escala{display:flex;justify-content:space-between;font-size:.72rem;color:var(--mut);margin-bottom:6px}
+.meta-bar.done{box-shadow:0 0 0 3px var(--pri2)}
+.legenda{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:4px}
 label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mut);gap:4px}
 input,select,textarea{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);min-width:0}
 button{font:inherit;padding:8px 14px;border:0;border-radius:8px;background:var(--pri);color:#fff;cursor:pointer}
@@ -80,7 +86,13 @@ body.locked main>section,body.locked #tabs{display:none}
         <label>Meta (R$)<input type="number" id="metaMes" min="0" step="50" style="width:130px"></label>
       </div>
     </div>
-    <div class="bar"><div id="barMeta" style="width:0"></div></div>
+    <div class="meta-bar" id="metaBar">
+      <div class="fill prev" id="barPrev"></div>
+      <div class="fill" id="barMeta"></div>
+      <div class="tick" style="left:25%"></div><div class="tick" style="left:50%"></div><div class="tick" style="left:75%"></div>
+      <div class="pct" id="barPct">0%</div>
+    </div>
+    <div class="meta-escala"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
     <div class="mut" id="txtMeta"></div>
   </div>
   <div class="grid">
@@ -309,10 +321,17 @@ function render(){
   $('kPrev').textContent=brl(prev);$('kRec').textContent=brl(rec);
   $('kPrevDet').textContent=c.modo==='novas'?'só 1ª parcela':`1ª: ${brl(soma(p1))} · demais: ${brl(soma(pN))} · vitalício: ${brl(soma(vit))}`;
   $('kFalta').textContent=falta?brl(falta):'Meta batida! 🎉';
-  $('kVit').textContent=brl(soma(vit));$('kVitDet').textContent=`${vit.length} contratos ativos`;
-  const pc=meta?Math.min(100,prev/meta*100):0;
-  $('barMeta').style.width=pc+'%';
-  $('txtMeta').textContent=`${pc.toFixed(0)}% da meta de ${brl(meta)} atingida (${brl(prev)}).`;
+  $('kVit').textContent=brl(soma(vit));$('kVitDet').textContent=`${vit.length} contrato${vit.length===1?'':'s'} ativo${vit.length===1?'':'s'}`;
+  const pcReal=meta?prev/meta*100:0,pc=Math.min(100,pcReal),pcRec=meta?Math.min(100,rec/meta*100):0;
+  // cor acompanha o progresso: laranja → amarelo → verde
+  const cor=pc>=100?'var(--pri)':pc>=75?'#3fa66b':pc>=50?'#d9a400':pc>=25?'#e58a00':'#e0603a';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{  // deixa a barra "encher" ao abrir
+    $('barPrev').style.width=pc+'%';$('barPrev').style.backgroundColor=cor;
+    $('barMeta').style.width=pcRec+'%';$('barMeta').style.backgroundColor=cor;
+  }));
+  $('barPct').textContent=pcReal>=100?`${pcReal.toFixed(0)}% 🎉`:`${pcReal.toFixed(0)}%`;
+  $('metaBar').classList.toggle('done',pc>=100);
+  $('txtMeta').innerHTML=`<span class="legenda" style="background:${cor}"></span>recebido ${brl(rec)} · <span class="legenda" style="background:${cor};opacity:.35"></span>previsto ${brl(prev)} · meta ${brl(meta)}`;
   // vendas que pagam a 1ª comissão neste mês
   const mv=addM(m,-delay);
   const vendasMes=db.vendas.filter(v=>baseDe(v)===mv);
