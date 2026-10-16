@@ -14,3 +14,11 @@ Sistema simples (um único `index.html`, sem instalação) para acompanhar comis
 - **Configurações:** regras, importar linhas coladas do Google Sheets, backup JSON e exportação CSV.
 
 Os dados ficam no navegador (localStorage).
+
+## Sincronizar entre aparelhos (Vercel)
+1. Vercel → projeto → **Storage** → Create → **Upstash for Redis** (plano grátis) → conectar ao projeto.
+2. Vercel → projeto → **Settings → Environment Variables** → adicionar `SENHA` com a senha desejada.
+3. **Deployments** → Redeploy.
+
+Ao abrir o site, ele pede a senha uma vez por aparelho. O indicador ao lado do título mostra ☁️ sincronizado.
+Sem essa configuração (ou abrindo o `index.html` direto), os dados ficam só no navegador.
