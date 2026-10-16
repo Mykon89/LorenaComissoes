@@ -17,8 +17,9 @@ Os dados ficam no navegador (localStorage).
 
 ## Sincronizar entre aparelhos (Vercel)
 1. Vercel → projeto → **Storage** → Create → **Upstash for Redis** (plano grátis) → conectar ao projeto.
-2. Vercel → projeto → **Settings → Environment Variables** → adicionar `SENHA` com a senha desejada.
-3. **Deployments** → Redeploy.
+2. **Deployments** → Redeploy.
+3. Abra o site: a senha digitada no **primeiro acesso** vira a senha oficial (fica gravada no banco).
+   Opcional: definir a variável de ambiente `SENHA` na Vercel, que tem prioridade.
 
-Ao abrir o site, ele pede a senha uma vez por aparelho. O indicador ao lado do título mostra ☁️ sincronizado.
+Cada aparelho pede a senha uma vez. O indicador ao lado do título mostra ☁️ sincronizado.
 Sem essa configuração (ou abrindo o `index.html` direto), os dados ficam só no navegador.

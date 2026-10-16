@@ -1,8 +1,14 @@
 // Guarda os dados do sistema no Upstash Redis (Vercel → Storage → Upstash for Redis).
-// Variáveis de ambiente: KV_REST_API_URL, KV_REST_API_TOKEN (criadas pela integração) e SENHA.
+// Variáveis de ambiente: KV_REST_API_URL, KV_REST_API_TOKEN (criadas pela integração).
+// SENHA é opcional: sem ela, a senha digitada no primeiro acesso fica gravada (hash) no banco.
 const URL_ = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+import { createHash, timingSafeEqual } from 'crypto';
+
 const CHAVE = 'lorena-comissoes';
+const CHAVE_SENHA = 'lorena-comissoes:senha';
+const hash = (s) => createHash('sha256').update(`lorena:${s}`).digest('hex');
+const iguais = (a, b) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 async function redis(path, body) {
   const r = await fetch(`${URL_}/${path}`, {
@@ -15,11 +21,22 @@ async function redis(path, body) {
 }
 const ler = async () => JSON.parse((await redis(`get/${CHAVE}`)) || '{"ver":0,"db":null}');
 
+async function senhaOk(senha) {
+  if (!senha) return false;
+  if (process.env.SENHA) return iguais(hash(senha), hash(process.env.SENHA));
+  const salva = await redis(`get/${CHAVE_SENHA}`);
+  if (salva) return iguais(hash(senha), salva);
+  if (senha.length < 4) return false;
+  await redis(`set/${CHAVE_SENHA}`, hash(senha)); // primeiro acesso define a senha
+  return true;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  if (!URL_ || !TOKEN || !process.env.SENHA) return res.status(503).json({ erro: 'nao_configurado' });
-  if (req.headers['x-senha'] !== process.env.SENHA) return res.status(401).json({ erro: 'senha' });
+  if (!URL_ || !TOKEN) return res.status(503).json({ erro: 'nao_configurado' });
+  const senha = String(req.headers['x-senha'] || '');
   try {
+    if (!(await senhaOk(senha))) return res.status(401).json({ erro: 'senha' });
     if (req.method === 'GET') return res.status(200).json(await ler());
     if (req.method === 'PUT') {
       const atual = await ler();

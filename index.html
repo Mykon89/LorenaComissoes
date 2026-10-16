@@ -197,7 +197,7 @@ const nuvem={on:false,ver:0,t:null,
   async iniciar(){
     let r;try{r=await this.req('GET')}catch(e){r={status:0}}
     if(r.status===401){
-      const s=prompt(this.senha()?'Senha incorreta. Digite a senha do sistema:':'Digite a senha do sistema para sincronizar:');
+      const s=prompt(this.senha()?'Senha incorreta. Digite a senha do sistema:':'Digite a senha do sistema.\nNo primeiro acesso, a senha digitada aqui (mín. 4 caracteres) passa a ser a senha oficial.');
       if(s){try{localStorage.setItem('lorena-senha',s)}catch(e){}return this.iniciar()}
       return this.status('🔒 sem senha: salvo só neste aparelho');
     }
