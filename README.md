@@ -9,7 +9,7 @@ Sistema simples (um único `index.html`, sem instalação) para acompanhar comis
 
 ## Telas
 - **Painel:** mês de recebimento, meta, comissão prevista (1ª parcela / demais / vitalício), recebido, quanto falta, vendas do mês que alimentam a meta e quanto vender por dia útil.
-- **Vendas:** cadastro (cliente, operadora, data do 1º pagamento, mensalidade); status por parcela (prevista → recebida → cancelada); cancelar contrato encerra o vitalício.
+- **Vendas:** cadastro (cliente, operadora, data do 1º pagamento, mensalidade); status por parcela (prevista → recebida → cancelada); ✎ corrige o valor real recebido (vale para a parcela e as seguintes do mesmo tipo); cancelar contrato encerra o vitalício.
 - **Mês a mês:** histórico e projeção de 12 meses.
 - **Configurações:** regras, importar linhas coladas do Google Sheets, backup JSON e exportação CSV.
 

@@ -117,7 +117,7 @@ tr.cancel td{opacity:.55}
       <h2 style="margin:0">Vendas cadastradas</h2>
       <input id="busca" placeholder="Buscar cliente/operadora">
     </div>
-    <p class="mut">Cada parcela mostra o mês em que a comissão cai. Clique para alternar: <span class="pill prev">prevista</span> → <span class="pill ok">recebida</span> → <span class="pill canc">cancelada</span>. Se o cliente parar de pagar, use <b>cancelar contrato</b> para encerrar o vitalício.</p>
+    <p class="mut">Cada parcela mostra o mês em que a comissão cai. Clique para alternar: <span class="pill prev">prevista</span> → <span class="pill ok">recebida</span> → <span class="pill canc">cancelada</span>. Use <b>✎</b> para corrigir o valor que realmente caiu (vale para essa parcela e as seguintes do mesmo tipo; valores corrigidos aparecem com *). Se o cliente parar de pagar, use <b>cancelar contrato</b> para encerrar o vitalício.</p>
     <div class="tbl"><table id="tbVendas"></table></div>
   </div>
 </section>
@@ -226,7 +226,16 @@ function entrada(v,k){
   const vit=k>=db.cfg.parc;
   if(vit&&!(db.cfg.vit>0))return null;
   const st=(v.st&&v.st[k])||'p';
-  return {v,k,vit,st,pag,mes:addM(pag,Number(db.cfg.delay)),valor:vit?vitDe(v.valor):v.valor*db.cfg.pct/100};
+  const aj=ajusteDe(v,k);
+  return {v,k,vit,st,pag,mes:addM(pag,Number(db.cfg.delay)),aj:aj!=null,valor:aj!=null?aj:vit?vitDe(v.valor):v.valor*db.cfg.pct/100};
+}
+// valor corrigido manualmente: vale para a parcela k e as seguintes do mesmo grupo
+// (grupo 1 = parcelas 1..parc; grupo 2 = vitalício), até a próxima correção
+function ajusteDe(v,k){
+  if(!v.aj)return null;
+  const ini=k<db.cfg.parc?0:db.cfg.parc;
+  const ks=Object.keys(v.aj).map(Number).filter(x=>x>=ini&&x<=k);
+  return ks.length?v.aj[Math.max(...ks)]:null;
 }
 const vitDe=valor=>valor*db.cfg.vit/100*db.cfg.vitPart/100;
 const entradaMes=(v,m)=>entrada(v,mdiff(baseDe(v),m)-Number(db.cfg.delay));
@@ -287,7 +296,7 @@ function render(){
   $('simRes').textContent=`${brl(cp)} por parcela × ${c.parc} = ${brl(cp*c.parc)}`+(c.vit?`; depois ${brl(cv)}/mês vitalício. Em 12 meses: ${brl(ano)}.`:'.');
   const esC=doMes(m,true).sort((a,b)=>a.vit-b.vit||a.k-b.k);
   $('tbMes').innerHTML='<tr><th>Cliente</th><th>Operadora</th><th>Tipo</th><th class="n">Comissão</th><th>Status</th></tr>'+
-    (esC.map(e=>`<tr><td>${esc(e.v.cliente)}</td><td>${esc(e.v.operadora||'')}</td><td>${e.vit?`<span class="tag">${nomeK(e)}</span>`:nomeK(e)}</td><td class="n">${brl(e.valor)}</td><td>${pill(e)}</td></tr>`).join('')||'<tr><td colspan=5 class="mut">Nenhuma comissão neste mês.</td></tr>');
+    (esC.map(e=>`<tr><td>${esc(e.v.cliente)}</td><td>${esc(e.v.operadora||'')}</td><td>${e.vit?`<span class="tag">${nomeK(e)}</span>`:nomeK(e)}</td><td class="n">${valTxt(e)} <button class="lnk" data-aj="${e.v.id}" data-k="${e.k}" title="Corrigir valor">✎</button></td><td>${pill(e)}</td></tr>`).join('')||'<tr><td colspan=5 class="mut">Nenhuma comissão neste mês.</td></tr>');
 
   // vendas
   const q=($('busca').value||'').toLowerCase();
@@ -298,9 +307,10 @@ function render(){
   h+=vs.map(v=>{const ps=[];for(let k=0;k<c.parc;k++)ps.push(entrada(v,k));
     const tot=soma(ps.filter(e=>e&&e.st!=='c'));
     const iniVit=addM(baseDe(v),c.parc+delay);
-    const vitTxt=v.cancel?(v.cancel<=addM(baseDe(v),c.parc)?'—':`até ${fmtM(addM(v.cancel,delay-1))}`):`${brl(vitDe(v.valor))}/mês desde ${fmtM(iniVit)}`;
+    const refVit=iniVit>hojeM?iniVit:hojeM,eVit=entradaMes(v,refVit);
+    const vitTxt=v.cancel?(v.cancel<=addM(baseDe(v),c.parc)?'—':`até ${fmtM(addM(v.cancel,delay-1))}`):`${eVit?valTxt(eVit):brl(vitDe(v.valor))}/mês desde ${fmtM(iniVit)}`;
     return `<tr class="${v.cancel?'cancel':''}"><td>${v.data.split('-').reverse().join('/')}</td><td>${esc(v.cliente)}${v.cancel?` <span class="pill canc">cancelado ${fmtM(v.cancel)}</span>`:''}</td><td>${esc(v.operadora||'')}</td><td class="n">${brl(v.valor)}</td>`+
-    ps.map(e=>`<td>${e?pill(e,true):'—'}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td>${c.vit?`<td><span class="tag">${vitTxt}</span></td>`:''}`+
+    ps.map(e=>`<td>${e?pill(e,true)+`<button class="lnk" data-aj="${v.id}" data-k="${e.k}" title="Corrigir valor">✎</button>`:'—'}</td>`).join('')+`<td class="n"><b>${brl(tot)}</b></td>${c.vit?`<td><span class="tag">${vitTxt}</span>${v.cancel?'':`<button class="lnk" data-ajvit="${v.id}" title="Corrigir vitalício">✎</button>`}</td>`:''}`+
     `<td><button class="lnk" data-canc="${v.id}">${v.cancel?'reativar':'cancelar contrato'}</button><button class="del" data-del="${v.id}" title="Excluir">✕</button></td></tr>`}).join('');
   if(!vs.length)h+=`<tr><td colspan=${7+c.parc} class="mut">Nenhuma venda cadastrada.</td></tr>`;
   $('tbVendas').innerHTML=h;
@@ -315,8 +325,18 @@ function render(){
   $('cPct').value=c.pct;$('cParc').value=c.parc;$('cVit').value=c.vit;$('cVitPart').value=c.vitPart;$('cDelay').value=c.delay;$('cMeta').value=c.meta;$('cModo').value=c.modo;
 }
 const lbl={p:'prevista',r:'recebida',c:'cancelada'},cls={p:'prev',r:'ok',c:'canc'};
-function pill(e,showMes){return `<span class="pill ${cls[e.st]}" data-v="${e.v.id}" data-k="${e.k}">${showMes?fmtM(e.mes)+' · '+brl(e.valor):lbl[e.st]}</span>`}
+const valTxt=e=>e.aj?`<span title="valor corrigido manualmente">${brl(e.valor)}*</span>`:brl(e.valor);
+function pill(e,showMes){return `<span class="pill ${cls[e.st]}" data-v="${e.v.id}" data-k="${e.k}">${showMes?fmtM(e.mes)+' · '+valTxt(e):lbl[e.st]}</span>`}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function corrigir(v,k){
+  const e=entrada(v,k);if(!e)return;
+  const r=prompt(`${v.cliente}\n${nomeK(e)} (recebe em ${fmtM(e.mes)})\n\nValor que realmente caiu (R$). Vale para esta e as seguintes do mesmo tipo.\nDeixe em branco para voltar ao cálculo automático.`,e.aj?String(e.valor.toFixed(2)).replace('.',','):'');
+  if(r===null)return;
+  v.aj=v.aj||{};
+  if(!r.trim())delete v.aj[k];
+  else{const n=parseValor(r);if(!(n>=0))return alert('Valor inválido');v.aj[k]=Math.round(n*100)/100;if(e.mes<=hojeM)setSt(v,k,'r')}
+  save();
+}
 function setSt(v,k,st){if(!Array.isArray(v.st))v.st=[];v.st[k]=st}
 
 // eventos
@@ -329,6 +349,17 @@ $('fVenda').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   db.vendas.push({id:uid(),cliente:f.get('cliente').trim(),operadora:f.get('operadora').trim(),data:f.get('data'),valor:Number(f.get('valor')),st:[]});
   e.target.reset();save()};
 document.body.addEventListener('click',e=>{
+  const ab=e.target.closest('[data-aj],[data-ajvit]');
+  if(ab){
+    const v=db.vendas.find(x=>x.id===(ab.dataset.aj||ab.dataset.ajvit));let k;
+    if(ab.dataset.ajvit){
+      const ini=addM(baseDe(v),db.cfg.parc+Number(db.cfg.delay));
+      const r=prompt('Corrigir o vitalício a partir de qual mês de recebimento? (AAAA-MM)',ini>hojeM?ini:hojeM);
+      if(!r)return;if(!/^\d{4}-\d{2}$/.test(r.trim()))return alert('Use o formato AAAA-MM');
+      k=Math.max(db.cfg.parc,mdiff(baseDe(v),r.trim())-Number(db.cfg.delay));
+    }else k=+ab.dataset.k;
+    corrigir(v,k);return;
+  }
   const pl=e.target.closest('.pill[data-v]');
   if(pl){const v=db.vendas.find(x=>x.id===pl.dataset.v);const k=+pl.dataset.k;setSt(v,k,{p:'r',r:'c',c:'p'}[(v.st&&v.st[k])||'p']);save();return}
   const d=e.target.dataset.del;
