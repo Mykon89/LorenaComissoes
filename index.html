@@ -43,9 +43,10 @@ tr.cancel td{opacity:.55}
 .tabs button{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
 .tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
 .hide{display:none}
+body.locked main>section,body.locked #tabs{display:none}
 </style>
 </head>
-<body>
+<body class="locked">
 <header>
   <h1>💼 Lorena Comissões <span class="mut" id="sync" style="font-weight:400"></span></h1>
   <div class="tabs" id="tabs">
@@ -56,13 +57,13 @@ tr.cancel td{opacity:.55}
   </div>
 </header>
 <main>
+<p class="mut" id="carregando" style="text-align:center">Carregando…</p>
 <form class="card hide" id="login" style="border-color:var(--pri)">
   <h2>🔒 Senha para sincronizar</h2>
   <p class="mut" id="loginMsg"></p>
   <div class="row">
     <label>Senha<input type="password" id="loginSenha" autocomplete="current-password" required minlength="4"></label>
     <button>Entrar</button>
-    <button type="button" class="lnk" id="loginPular">continuar só neste aparelho</button>
   </div>
 </form>
 
@@ -163,7 +164,7 @@ tr.cancel td{opacity:.55}
   <div class="card">
     <h2>Sincronização</h2>
     <p class="mut" id="syncInfo"></p>
-    <button class="sec" id="bSenha">Trocar senha / reconectar</button>
+    <div class="row"><button class="sec" id="bSenha">Trocar senha / reconectar</button><button class="sec" id="bSair">Sair deste aparelho</button></div>
   </div>
   <div class="card">
     <h2>Backup</h2>
@@ -210,20 +211,23 @@ const nuvem={on:false,ver:0,t:null,
       try{localStorage.removeItem('lorena-senha')}catch(e){}  // senha errada não fica guardada
       $('loginMsg').textContent=errada?'Senha incorreta. Tente novamente.':r.dados&&r.dados.nova?'Primeiro acesso: crie a senha do sistema (mín. 4 caracteres). Ela será usada em todos os aparelhos.':'Digite a senha do sistema.';
       $('loginMsg').style.color=errada?'var(--bad)':'';
-      $('login').classList.remove('hide');$('loginSenha').value='';$('loginSenha').focus();
-      return this.status('🔒 sem senha: salvo só neste aparelho');
+      this.bloquear();
+      return this.status('🔒 bloqueado');
     }
-    if(r.status!==200)return this.status(r.status===503?'⚠️ servidor sem banco configurado: salvo só neste aparelho':'💾 salvo só neste aparelho');
-    $('login').classList.add('hide');this.on=true;this.ver=r.dados.ver;
+    if(r.status!==200){this.liberar();return this.status(r.status===503?'⚠️ servidor sem banco configurado: salvo só neste aparelho':'💾 salvo só neste aparelho')}
+    this.liberar();this.on=true;this.ver=r.dados.ver;
     if(r.dados.db){db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render();this.status('☁️ sincronizado')}
     else if(db.vendas.length){this.enviar()}  // primeiro uso: sobe o que já estava neste aparelho
     else this.status('☁️ sincronizado');
   },
+  bloquear(){this.on=false;document.body.classList.add('locked');$('carregando').classList.add('hide');$('login').classList.remove('hide');$('loginSenha').value='';$('loginSenha').focus()},
+  liberar(){document.body.classList.remove('locked');$('carregando').classList.add('hide');$('login').classList.add('hide')},
   agendar(){if(!this.on)return;this.status('⏳ salvando…');clearTimeout(this.t);this.t=setTimeout(()=>this.enviar(),800)},
   async enviar(){
     let r;try{r=await this.req('PUT',{ver:this.ver,db})}catch(e){return this.status('⚠️ sem conexão: alterações não sincronizadas')}
     if(r.status===200){this.ver=r.dados.ver;return this.status('☁️ sincronizado')}
     if(r.status===409){alert('Os dados foram alterados em outro aparelho. Vou carregar a versão mais recente; refaça a última alteração.');this.ver=r.dados.ver;db=migrar(r.dados.db);try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}render();return this.status('☁️ sincronizado')}
+    if(r.status===401){try{localStorage.removeItem('lorena-senha')}catch(e){}$('loginMsg').textContent='A senha mudou. Digite a senha do sistema.';this.bloquear();return this.status('🔒 bloqueado')}
     this.status('⚠️ erro ao salvar no servidor ('+r.status+')');
   }};
 
@@ -399,7 +403,7 @@ $('bCsv').onclick=()=>{const l=[['Cliente','Operadora','1o pagamento','Mensalida
   baixar('comissoes.csv','﻿'+l.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\n'),'text/csv')};
 $('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=migrar(d);mesSel.value=addM(hojeM,Number(db.cfg.delay));save()}}catch(_){alert('Arquivo inválido')}})};
 $('login').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('lorena-senha',$('loginSenha').value)}catch(_){}$('loginMsg').textContent='Verificando…';$('loginMsg').style.color='';nuvem.iniciar()};
-$('loginPular').onclick=()=>$('login').classList.add('hide');
+$('bSair').onclick=()=>{if(!confirm('Sair deste aparelho? Os dados continuam salvos no servidor; aqui será pedida a senha de novo.'))return;try{localStorage.removeItem('lorena-senha');localStorage.removeItem(KEY)}catch(e){}location.reload()};
 $('bSenha').onclick=()=>{try{localStorage.removeItem('lorena-senha')}catch(e){}nuvem.on=false;nuvem.iniciar()};
 render();nuvem.iniciar();
 </script>
