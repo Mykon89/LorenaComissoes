@@ -43,6 +43,9 @@ tr.cancel td{opacity:.55}
 .tabs button{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
 .tabs button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
 .hide{display:none}
+.mesnav{display:flex;gap:4px;align-items:center}
+.mesnav button.sec{padding:8px 12px;font-weight:700}
+.mesnav select{min-width:170px;cursor:pointer}
 body.locked main>section,body.locked #tabs{display:none}
 </style>
 </head>
@@ -73,7 +76,7 @@ body.locked main>section,body.locked #tabs{display:none}
     <div class="row" style="justify-content:space-between">
       <h2 style="margin:0">Meta do mês</h2>
       <div class="row">
-        <label>Mês de recebimento<input type="month" id="mesSel"></label>
+        <label>Mês de recebimento<span class="mesnav"><button type="button" class="sec" id="mesAnt" title="Mês anterior">‹</button><select id="mesSel"></select><button type="button" class="sec" id="mesProx" title="Próximo mês">›</button><button type="button" class="lnk" id="mesHoje">atual</button></span></label>
         <label>Meta (R$)<input type="number" id="metaMes" min="0" step="50" style="width:130px"></label>
       </div>
     </div>
@@ -289,12 +292,15 @@ function diasUteis(m){
 }
 
 const $=id=>document.getElementById(id);
-const mesSel=$('mesSel');mesSel.value=addM(hojeM,Number(db.cfg.delay));
+const mesSel=$('mesSel');let mesAtual=addM(hojeM,Number(db.cfg.delay));
+const nomeMes=m=>{const [y,mo]=m.split('-');const t=new Date(y,mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});return t[0].toUpperCase()+t.slice(1)};
 
 function render(){
   const c=db.cfg,delay=Number(c.delay);
   // painel
-  const m=mesSel.value||hojeM;const es=doMes(m);
+  const m=mesAtual;const es=doMes(m);
+  const atual=addM(hojeM,delay);
+  mesSel.innerHTML=faixaMeses(m).map(x=>`<option value="${x}">${nomeMes(x)}${x===atual?' (atual)':''}</option>`).join('');mesSel.value=m;
   const p1=es.filter(e=>e.k===0),pN=es.filter(e=>e.k>0&&!e.vit),vit=es.filter(e=>e.vit);
   const prev=c.modo==='novas'?soma(p1):soma(es);
   const rec=soma((c.modo==='novas'?p1:es).filter(e=>e.st==='r'));
@@ -371,9 +377,11 @@ function setSt(v,k,st){if(!Array.isArray(v.st))v.st=[];v.st[k]=st}
 // eventos
 $('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   ['painel','vendas','mensal','config'].forEach(s=>$(s).classList.toggle('hide',s!==t))};
-mesSel.onchange=render;$('simValor').oninput=render;$('busca').oninput=render;
-$('metaMes').onchange=e=>{db.metas[mesSel.value]=Number(e.target.value)||0;save()};
-$('bRecTudo').onclick=()=>{doMes(mesSel.value).forEach(e=>setSt(e.v,e.k,'r'));save()};
+mesSel.onchange=()=>{mesAtual=mesSel.value;render()};
+$('mesAnt').onclick=()=>{mesAtual=addM(mesAtual,-1);render()};$('mesProx').onclick=()=>{mesAtual=addM(mesAtual,1);render()};$('mesHoje').onclick=()=>{mesAtual=addM(hojeM,Number(db.cfg.delay));render()};
+$('simValor').oninput=render;$('busca').oninput=render;
+$('metaMes').onchange=e=>{db.metas[mesAtual]=Number(e.target.value)||0;save()};
+$('bRecTudo').onclick=()=>{doMes(mesAtual).forEach(e=>setSt(e.v,e.k,'r'));save()};
 $('fVenda').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   db.vendas.push({id:uid(),cliente:f.get('cliente').trim(),operadora:f.get('operadora').trim(),data:f.get('data'),valor:Number(f.get('valor')),st:[]});
   e.target.reset();save()};
@@ -414,7 +422,7 @@ $('bExp').onclick=()=>baixar(`lorena-comissoes-${hojeM}.json`,JSON.stringify(db,
 $('bCsv').onclick=()=>{const l=[['Cliente','Operadora','1o pagamento','Mensalidade','Tipo','Mes pagamento','Mes recebimento','Comissao','Status']];
   faixaMeses().forEach(m=>doMes(m,true).forEach(e=>l.push([e.v.cliente,e.v.operadora,e.v.data,e.v.valor,nomeK(e),e.pag,e.mes,e.valor.toFixed(2),lbl[e.st]])));
   baixar('comissoes.csv','﻿'+l.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\n'),'text/csv')};
-$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=migrar(d);mesSel.value=addM(hojeM,Number(db.cfg.delay));save()}}catch(_){alert('Arquivo inválido')}})};
+$('fImp').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!Array.isArray(d.vendas))throw 0;if(confirm('Substituir os dados atuais pelo backup?')){db=migrar(d);mesAtual=addM(hojeM,Number(db.cfg.delay));save()}}catch(_){alert('Arquivo inválido')}})};
 $('login').onsubmit=e=>{e.preventDefault();try{localStorage.setItem('lorena-senha',$('loginSenha').value)}catch(_){}$('loginMsg').textContent='Verificando…';$('loginMsg').style.color='';nuvem.iniciar()};
 $('bSair').onclick=()=>{if(!confirm('Sair deste aparelho? Os dados continuam salvos no servidor; aqui será pedida a senha de novo.'))return;try{localStorage.removeItem('lorena-senha');localStorage.removeItem(KEY)}catch(e){}location.reload()};
 $('bSenha').onclick=()=>{try{localStorage.removeItem('lorena-senha')}catch(e){}nuvem.on=false;nuvem.iniciar()};
